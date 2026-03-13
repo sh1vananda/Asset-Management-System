@@ -32,7 +32,7 @@ export default function DashboardCards() {
     <div className="row">
       {stats.map((card) => (
         <div key={card.title} className="col-md-3 mb-3">
-          <div className={dashboard-card }>
+          <div className={`dashboard-card ${card.className}`}>
             <h3>{card.value}</h3>
             <p>{card.title}</p>
           </div>
