@@ -46,3 +46,6 @@ build/
 *.egg-info/
 .installed.cfg
 *.egg
+
+api/workflow.md
+api/project_description.md
