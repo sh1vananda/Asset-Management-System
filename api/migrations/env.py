@@ -32,7 +32,6 @@ def run_migrations_offline():
     context.configure(
         url=url, target_metadata=get_metadata(), literal_binds=True
     )
-
     with context.begin_transaction():
         context.run_migrations()
 
@@ -49,14 +48,12 @@ def run_migrations_online():
         conf_args["process_revision_directives"] = process_revision_directives
 
     connectable = get_engine()
-
     with connectable.connect() as connection:
         context.configure(
             connection=connection,
             target_metadata=get_metadata(),
             **conf_args
         )
-
         with context.begin_transaction():
             context.run_migrations()
 
