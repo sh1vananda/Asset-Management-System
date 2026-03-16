@@ -6,7 +6,7 @@ from flask_jwt_extended import JWTManager
 
 from app.core.database import db
 from app.core.config import Config
-from app.modules.assignments.routes import assignment_bp
+
 
 load_dotenv()
 
@@ -22,10 +22,15 @@ def create_app(config_class=Config):
     jwt.init_app(app)
     CORS(app)
 
-    app.register_blueprint(assignment_bp)
-
     from app.modules.auth.models import User
     from app.modules.assignments.models import Assignment
+    from app.modules.issues.models import Issue
+
+    from app.modules.issues.routes import issue_bp
+    app.register_blueprint(issue_bp)
+
+    from app.modules.assignments.routes import assignment_bp
+    app.register_blueprint(assignment_bp)
 
     from .modules.auth.routes import auth_bp
     app.register_blueprint(auth_bp)
