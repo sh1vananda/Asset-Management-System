@@ -1,12 +1,29 @@
 ﻿import { useMemo, useState } from "react";
 import AssetForm from "./AssetForm";
 import AssetTable from "./AssetTable";
-import { useApp } from "../../core/store";
+import { useApp } from "../../core/useApp";
+import ErrorBoundary from "../../shared/components/ErrorBoundary";
 
 export default function AssetsPage() {
-  const { assets, addAsset, updateAsset, deleteAsset } = useApp();
+  const {
+    assets,
+    addAsset,
+    updateAsset,
+    deleteAsset,
+    hasPermission,
+    PERMISSIONS
+  } = useApp();
   const [activeAsset, setActiveAsset] = useState(null);
   const [alert, setAlert] = useState(null);
+
+  // Check permissions
+  if (!hasPermission(PERMISSIONS.VIEW_ALL_ASSETS) && !hasPermission(PERMISSIONS.VIEW_OWN_ASSETS)) {
+    return (
+      <div className="alert alert-warning">
+        You don't have permission to view this page.
+      </div>
+    );
+  }
 
   const stats = useMemo(() => {
     const count = assets.length;
@@ -28,6 +45,15 @@ export default function AssetsPage() {
   }, [assets]);
 
   const handleSave = (asset) => {
+    if (asset.id && !hasPermission(PERMISSIONS.EDIT_ASSET)) {
+      setAlert({ type: "danger", message: "You don't have permission to edit assets." });
+      return;
+    }
+    if (!asset.id && !hasPermission(PERMISSIONS.ADD_ASSET)) {
+      setAlert({ type: "danger", message: "You don't have permission to add assets." });
+      return;
+    }
+
     if (asset.id) {
       updateAsset(asset);
       setAlert({ type: "success", message: "Asset updated successfully." });
@@ -40,6 +66,11 @@ export default function AssetsPage() {
   };
 
   const handleDelete = (id) => {
+    if (!hasPermission(PERMISSIONS.DELETE_ASSET)) {
+      setAlert({ type: "danger", message: "You don't have permission to delete assets." });
+      return;
+    }
+
     if (!window.confirm("Are you sure you want to delete this asset?")) {
       return;
     }

@@ -1,5 +1,5 @@
 ﻿import { useMemo } from "react";
-import { useApp } from "../../core/store";
+import { useApp } from "../../core/useApp";
 
 export default function DashboardCards() {
   const { assets } = useApp();

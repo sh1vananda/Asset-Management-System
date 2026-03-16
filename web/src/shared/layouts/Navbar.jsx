@@ -1,5 +1,5 @@
 ﻿import { useNavigate } from "react-router-dom";
-import { useApp } from "../../core/store";
+import { useApp } from "../../core/useApp";
 
 export default function Navbar() {
   const navigate = useNavigate();
@@ -15,7 +15,9 @@ export default function Navbar() {
       <div>
         <h5 className="mb-0">Enterprise Asset Management</h5>
         {user && (
-          <small className="text-muted">Signed in as {user.name}</small>
+          <small className="text-muted">
+            Signed in as {user.name} ({user.role})
+          </small>
         )}
       </div>
 

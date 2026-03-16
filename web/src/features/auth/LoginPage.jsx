@@ -1,6 +1,6 @@
 ﻿import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useApp } from "../../core/store";
+import { useApp } from "../../core/useApp";
 
 export default function LoginPage() {
   const navigate = useNavigate();

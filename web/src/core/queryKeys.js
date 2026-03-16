@@ -1,4 +1,26 @@
+// Query Keys for React Query State Synchronization
+// Naming Convention: SCREAMING_SNAKE_CASE prefixed by module name
 export const QUERY_KEYS = {
+  // Assets Module
   ASSETS: "ASSETS",
-  DASHBOARD: "DASHBOARD",
+  ASSETS_LIST: "ASSETS_LIST",
+  ASSETS_DETAIL: "ASSETS_DETAIL",
+
+  // Auth Module
+  AUTH_USER: "AUTH_USER",
+  AUTH_USERS: "AUTH_USERS",
+
+  // Dashboard Module
+  DASHBOARD_STATS: "DASHBOARD_STATS",
+  DASHBOARD_CHARTS: "DASHBOARD_CHARTS",
+
+  // Assignments Module
+  ASSIGNMENTS: "ASSIGNMENTS",
+  ASSIGNMENTS_LIST: "ASSIGNMENTS_LIST",
+  ASSIGNMENTS_DETAIL: "ASSIGNMENTS_DETAIL",
+
+  // Issues Module
+  ISSUES: "ISSUES",
+  ISSUES_LIST: "ISSUES_LIST",
+  ISSUES_DETAIL: "ISSUES_DETAIL",
 };

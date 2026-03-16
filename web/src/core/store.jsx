@@ -1,10 +1,14 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useEffect, useMemo, useState, useCallback } from "react";
 
 const STORAGE_KEYS = {
   currentUser: "am_current_user",
   assets: "am_assets",
   users: "am_users",
+  assignments: "am_assignments",
+  issues: "am_issues",
 };
+
+import { ROLES, PERMISSIONS, ROLE_PERMISSIONS } from "./constants";
 
 const defaultAssets = [
   {
@@ -14,6 +18,9 @@ const defaultAssets = [
     brand: "Dell",
     model: "XPS 13",
     status: "Available",
+    assignedTo: null,
+    purchaseDate: "2023-01-15",
+    location: "Office A",
   },
   {
     id: 2,
@@ -22,15 +29,58 @@ const defaultAssets = [
     brand: "HP",
     model: "LaserJet Pro",
     status: "Assigned",
+    assignedTo: 1,
+    purchaseDate: "2023-02-20",
+    location: "Office B",
   },
 ];
 
 const defaultUsers = [
   {
     id: 1,
-    name: "Test User",
-    email: "test@example.com",
+    name: "John Doe",
+    email: "employee@example.com",
     password: "password123",
+    role: ROLES.EMPLOYEE,
+  },
+  {
+    id: 2,
+    name: "Jane Smith",
+    email: "itmanager@example.com",
+    password: "password123",
+    role: ROLES.IT_MANAGER,
+  },
+  {
+    id: 3,
+    name: "Admin User",
+    email: "admin@example.com",
+    password: "password123",
+    role: ROLES.ADMIN,
+  },
+];
+
+const defaultAssignments = [
+  {
+    id: 1,
+    assetId: 2,
+    userId: 1,
+    assignedDate: "2024-01-10",
+    returnDate: null,
+    notes: "Assigned for daily work",
+  },
+];
+
+const defaultIssues = [
+  {
+    id: 1,
+    assetId: 1,
+    reportedBy: 1,
+    title: "Screen flickering",
+    description: "Laptop screen flickers intermittently",
+    status: "Open",
+    priority: "Medium",
+    reportedDate: "2024-01-15",
+    resolvedDate: null,
   },
 ];
 
@@ -58,6 +108,8 @@ export function AppProvider({ children }) {
   const [user, setUser] = useState(() => readFromStorage(STORAGE_KEYS.currentUser, null));
   const [assets, setAssets] = useState(() => readFromStorage(STORAGE_KEYS.assets, defaultAssets));
   const [users, setUsers] = useState(() => readFromStorage(STORAGE_KEYS.users, defaultUsers));
+  const [assignments] = useState(() => readFromStorage(STORAGE_KEYS.assignments, defaultAssignments));
+  const [issues] = useState(() => readFromStorage(STORAGE_KEYS.issues, defaultIssues));
 
   useEffect(() => {
     writeToStorage(STORAGE_KEYS.assets, assets);
@@ -68,6 +120,14 @@ export function AppProvider({ children }) {
   }, [users]);
 
   useEffect(() => {
+    writeToStorage(STORAGE_KEYS.assignments, assignments);
+  }, [assignments]);
+
+  useEffect(() => {
+    writeToStorage(STORAGE_KEYS.issues, issues);
+  }, [issues]);
+
+  useEffect(() => {
     if (user) {
       writeToStorage(STORAGE_KEYS.currentUser, user);
     } else {
@@ -75,7 +135,14 @@ export function AppProvider({ children }) {
     }
   }, [user]);
 
-  const login = (email, password) => {
+  // Permission checking utility
+  const hasPermission = useCallback((permission) => {
+    if (!user) return false;
+    const userPermissions = ROLE_PERMISSIONS[user.role] || [];
+    return userPermissions.includes(permission);
+  }, [user]);
+
+  const login = useCallback((email, password) => {
     const existing = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
     if (!existing) {
       return { success: false, message: "No user found with that email." };
@@ -83,63 +150,57 @@ export function AppProvider({ children }) {
     if (existing.password !== password) {
       return { success: false, message: "Invalid password." };
     }
-    setUser({ id: existing.id, name: existing.name, email: existing.email });
+    setUser({ id: existing.id, name: existing.name, email: existing.email, role: existing.role });
     return { success: true };
-  };
+  }, [users]);
 
-  const register = (name, email, password) => {
+  const register = useCallback((name, email, password) => {
     const normalizedEmail = email.toLowerCase().trim();
     if (users.some((u) => u.email.toLowerCase() === normalizedEmail)) {
       return { success: false, message: "An account with that email already exists." };
     }
     const nextId = Math.max(0, ...users.map((u) => u.id)) + 1;
-    const newUser = { id: nextId, name: name.trim(), email: normalizedEmail, password };
+    const newUser = { id: nextId, name: name.trim(), email: normalizedEmail, password, role: ROLES.EMPLOYEE };
     const nextUsers = [...users, newUser];
     setUsers(nextUsers);
-    setUser({ id: newUser.id, name: newUser.name, email: newUser.email });
+    setUser({ id: newUser.id, name: newUser.name, email: newUser.email, role: newUser.role });
     return { success: true };
-  };
+  }, [users]);
 
   const logout = () => {
     setUser(null);
   };
 
-  const addAsset = (asset) => {
+  // Asset operations
+  const addAsset = useCallback((asset) => {
     const nextId = Math.max(0, ...assets.map((a) => a.id)) + 1;
-    const nextAssets = [...assets, { ...asset, id: nextId }];
-    setAssets(nextAssets);
-    return nextAssets;
-  };
-
-  const updateAsset = (updated) => {
-    setAssets((prev) => prev.map((a) => (a.id === updated.id ? { ...a, ...updated } : a)));
-  };
-
-  const deleteAsset = (id) => {
-    setAssets((prev) => prev.filter((a) => a.id !== id));
-  };
+    const newAsset = {
+      ...asset,
+      id: nextId,
+      assignedTo: null,
+      purchaseDate: new Date().toISOString().split("T")[0],
+    };
+    setAssets([...assets, newAsset]);
+  }, [assets]);
 
   const value = useMemo(
     () => ({
       user,
       assets,
+      users,
+      assignments,
+      issues,
       login,
       register,
       logout,
       addAsset,
-      updateAsset,
-      deleteAsset,
+      hasPermission,
+      PERMISSIONS,
     }),
-    [user, assets]
+    [user, assets, users, assignments, issues, login, register, addAsset, hasPermission]
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
 
-export function useApp() {
-  const ctx = useContext(AppContext);
-  if (!ctx) {
-    throw new Error("useApp must be used within AppProvider");
-  }
-  return ctx;
-}
+export { AppContext };

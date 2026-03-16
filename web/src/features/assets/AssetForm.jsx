@@ -6,6 +6,8 @@ const defaultFormState = {
   brand: "",
   model: "",
   status: "Available",
+  purchaseDate: "",
+  location: "",
 };
 
 export default function AssetForm({ initialData = null, onSave, onCancel }) {
@@ -20,6 +22,8 @@ export default function AssetForm({ initialData = null, onSave, onCancel }) {
         brand: initialData.brand || "",
         model: initialData.model || "",
         status: initialData.status || "Available",
+        purchaseDate: initialData.purchaseDate || "",
+        location: initialData.location || "",
         id: initialData.id,
       });
     } else {
@@ -103,6 +107,26 @@ export default function AssetForm({ initialData = null, onSave, onCancel }) {
               value={form.model}
               onChange={handleChange("model")}
               placeholder="e.g. XPS 13"
+            />
+          </div>
+
+          <div className="col-md-6 mb-3">
+            <label className="form-label">Purchase Date</label>
+            <input
+              type="date"
+              className="form-control"
+              value={form.purchaseDate}
+              onChange={handleChange("purchaseDate")}
+            />
+          </div>
+
+          <div className="col-md-6 mb-3">
+            <label className="form-label">Location</label>
+            <input
+              className="form-control"
+              value={form.location}
+              onChange={handleChange("location")}
+              placeholder="e.g. Office A, Floor 2"
             />
           </div>
 
