@@ -26,8 +26,11 @@ def create_app(config_class=Config):
 
     from app.modules.auth.models import User
     from app.modules.assignments.models import Assignment
+    from app.modules.assets.models import Asset
 
     from .modules.auth.routes import auth_bp
+    from .modules.assets.routes import assets_bp
     app.register_blueprint(auth_bp)
+    app.register_blueprint(assets_bp)
 
     return app
