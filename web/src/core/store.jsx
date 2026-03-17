@@ -9,7 +9,6 @@ const STORAGE_KEYS = {
 };
 
 import { ROLES, PERMISSIONS, ROLE_PERMISSIONS } from "./constants";
-import { loginApi, registerApi } from "../features/auth/authService";
 
 const defaultAssets = [
   {
@@ -63,7 +62,7 @@ const defaultUsers = [
 const defaultAssignments = [
   {
     id: 1,
-    assetId: 2,
+    assetId: 1,
     userId: 1,
     assignedDate: "2024-01-10",
     returnDate: null,
@@ -74,7 +73,7 @@ const defaultAssignments = [
 const defaultIssues = [
   {
     id: 1,
-    assetId: 1,
+    assetId: 2,
     reportedBy: 1,
     title: "Screen flickering",
     description: "Laptop screen flickers intermittently",
@@ -109,8 +108,11 @@ export function AppProvider({ children }) {
   const [user, setUser] = useState(() => readFromStorage(STORAGE_KEYS.currentUser, null));
   const [assets, setAssets] = useState(() => readFromStorage(STORAGE_KEYS.assets, defaultAssets));
   const [users, setUsers] = useState(() => readFromStorage(STORAGE_KEYS.users, defaultUsers));
-  const [assignments] = useState(() => readFromStorage(STORAGE_KEYS.assignments, defaultAssignments));
-  const [issues, setIssues] = useState(() => readFromStorage(STORAGE_KEYS.issues, defaultIssues));
+  // const [assignments] = useState(() => readFromStorage(STORAGE_KEYS.assignments, defaultAssignments));
+  const [assignments, setAssignments] = useState(() =>
+  readFromStorage(STORAGE_KEYS.assignments, defaultAssignments)
+);
+  const [issues] = useState(() => readFromStorage(STORAGE_KEYS.issues, defaultIssues));
 
   useEffect(() => {
     writeToStorage(STORAGE_KEYS.assets, assets);
@@ -143,29 +145,30 @@ export function AppProvider({ children }) {
     return userPermissions.includes(permission);
   }, [user]);
 
-  const login = useCallback(async (email, password) => {
-    const result = await loginApi(email, password);
-    if (result.success) {
-      const { access_token, user } = result.data;
-      localStorage.setItem("access_token", access_token);
-      setUser(user);
-      return { success: true };
-    } else {
-      return { success: false, message: result.message };
+  const login = useCallback((email, password) => {
+    const existing = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+    if (!existing) {
+      return { success: false, message: "No user found with that email." };
     }
-  }, []);
+    if (existing.password !== password) {
+      return { success: false, message: "Invalid password." };
+    }
+    setUser({ id: existing.id, name: existing.name, email: existing.email, role: existing.role });
+    return { success: true };
+  }, [users]);
 
-  const register = useCallback(async (name, email, password) => {
-    const result = await registerApi(name, email, password);
-    if (result.success) {
-      const { access_token, user } = result.data;
-      localStorage.setItem("access_token", access_token);
-      setUser(user);
-      return { success: true };
-    } else {
-      return { success: false, message: result.message };
+  const register = useCallback((name, email, password) => {
+    const normalizedEmail = email.toLowerCase().trim();
+    if (users.some((u) => u.email.toLowerCase() === normalizedEmail)) {
+      return { success: false, message: "An account with that email already exists." };
     }
-  }, []);
+    const nextId = Math.max(0, ...users.map((u) => u.id)) + 1;
+    const newUser = { id: nextId, name: name.trim(), email: normalizedEmail, password, role: ROLES.EMPLOYEE };
+    const nextUsers = [...users, newUser];
+    setUsers(nextUsers);
+    setUser({ id: newUser.id, name: newUser.name, email: newUser.email, role: newUser.role });
+    return { success: true };
+  }, [users]);
 
   const logout = () => {
     setUser(null);
@@ -183,61 +186,91 @@ export function AppProvider({ children }) {
     setAssets([...assets, newAsset]);
   }, [assets]);
 
-  // Issue operations
-  const reportIssue = useCallback((assetId, title, description, priority) => {
-    const nextId = Math.max(0, ...issues.map((i) => i.id)) + 1;
-    const newIssue = {
-      id: nextId,
-      assetId: parseInt(assetId),
-      reportedBy: user.id,
-      title: title.trim(),
-      description: description.trim(),
-      status: "Open",
-      priority,
-      reportedDate: new Date().toISOString().split("T")[0],
-      resolvedDate: null,
-    };
-    setIssues([...issues, newIssue]);
-  }, [issues, user]);
+  // Assign asset
+  const assignAsset = useCallback((assetId, userId, notes) => {
 
-  const updateIssueStatus = useCallback((issueId, newStatus) => {
-    setIssues(issues.map(issue =>
-      issue.id === issueId
-        ? {
-            ...issue,
-            status: newStatus,
-            resolvedDate: newStatus === "Closed" ? new Date().toISOString().split("T")[0] : issue.resolvedDate
-          }
-        : issue
-    ));
-  }, [issues]);
+  const asset = assets.find(a => a.id === Number(assetId));
 
-  const returnAsset = useCallback((assignmentId) => {
-    setAssignments(assignments.map(assignment =>
-      assignment.id === assignmentId
-        ? { ...assignment, returnDate: new Date().toISOString().split("T")[0] }
-        : assignment
-    ));
-  }, [assignments]);
+  if (!asset) return;
+
+  // prevent duplicate assignment
+  const alreadyAssigned = assignments.find(
+    a => a.assetId === Number(assetId) && !a.returnDate
+  );
+
+  if (alreadyAssigned) {
+    alert("Asset already assigned");
+    return;
+  }
+
+  const nextId = Math.max(0, ...assignments.map(a => a.id)) + 1;
+
+  const newAssignment = {
+    id: nextId,
+    assetId: Number(assetId),
+    userId: Number(userId),
+    assignedBy: user?.id || 0,
+    assignedDate: new Date().toISOString(),
+    returnDate: null,
+    notes
+  };
+
+  setAssignments([...assignments, newAssignment]);
+
+  // update asset status
+  const updatedAssets = assets.map(a =>
+    a.id === Number(assetId)
+      ? { ...a, status: "Assigned", assignedTo: Number(userId) }
+      : a
+  );
+
+  setAssets(updatedAssets);
+
+}, [assignments, assets, user]);
+
+// Return asset
+const returnAsset = useCallback((assignmentId) => {
+
+  const assignment = assignments.find(a => a.id === assignmentId);
+
+  if (!assignment) return;
+
+  const updatedAssignments = assignments.map(a =>
+    a.id === assignmentId
+      ? { ...a, returnDate: new Date().toISOString() }
+      : a
+  );
+
+  setAssignments(updatedAssignments);
+
+  // update asset
+  const updatedAssets = assets.map(a =>
+    a.id === assignment.assetId
+      ? { ...a, status: "Available", assignedTo: null }
+      : a
+  );
+
+  setAssets(updatedAssets);
+
+}, [assignments, assets]);
 
   const value = useMemo(
     () => ({
-      user,
-      assets,
-      users,
-      assignments,
-      issues,
-      login,
-      register,
-      logout,
-      addAsset,
-      reportIssue,
-      updateIssueStatus,
-      returnAsset,
-      hasPermission,
-      PERMISSIONS,
+    user,
+    assets,
+    users,
+    assignments,
+    issues,
+    login,
+    register,
+    logout,
+    addAsset,
+    assignAsset,
+    returnAsset,
+    hasPermission,
+    PERMISSIONS,
     }),
-    [user, assets, users, assignments, issues, login, register, addAsset, reportIssue, updateIssueStatus, returnAsset, hasPermission]
+    [user, assets, users, assignments, issues, login, register, addAsset, hasPermission]
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
