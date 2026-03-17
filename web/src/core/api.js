@@ -3,7 +3,7 @@ import axios from "axios";
 // JWT Strategy: 15-minute access token TTL
 // Axios interceptor handles token refresh automatically
 const api = axios.create({
-  baseURL: "http://localhost:5000/api",
+  baseURL: import.meta.env.VITE_API_URL,
   timeout: 10000,
 });
 

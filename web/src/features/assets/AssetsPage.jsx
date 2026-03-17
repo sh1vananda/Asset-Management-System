@@ -2,104 +2,35 @@
 import AssetForm from "./AssetForm";
 import AssetTable from "./AssetTable";
 import { useApp } from "../../core/useApp";
-import ErrorBoundary from "../../shared/components/ErrorBoundary";
+import { useAssets } from "./useAssets";
 
 export default function AssetsPage() {
-  const {
-    assets,
-    addAsset,
-    updateAsset,
-    deleteAsset,
-    hasPermission,
-    PERMISSIONS
-  } = useApp();
-  const [activeAsset, setActiveAsset] = useState(null);
-  const [alert, setAlert] = useState(null);
+  const { hasPermission, PERMISSIONS } = useApp();
+  const { assets, addAsset, updateAsset, deleteAsset } = useAssets();
 
-  // Check permissions
-  if (!hasPermission(PERMISSIONS.VIEW_ALL_ASSETS) && !hasPermission(PERMISSIONS.VIEW_OWN_ASSETS)) {
-    return (
-      <div className="alert alert-warning">
-        You don't have permission to view this page.
-      </div>
-    );
+  const [activeAsset, setActiveAsset] = useState(null);
+
+  if (
+    !hasPermission(PERMISSIONS.VIEW_ALL_ASSETS) &&
+    !hasPermission(PERMISSIONS.VIEW_OWN_ASSETS)
+  ) {
+    return <div>No permission</div>;
   }
 
-  const stats = useMemo(() => {
-    const count = assets.length;
-    const byStatus = assets.reduce(
-      (acc, asset) => {
-        const status = asset.status || "Unknown";
-        acc[status] = (acc[status] || 0) + 1;
-        return acc;
-      },
-      {
-        Available: 0,
-        Assigned: 0,
-        Maintenance: 0,
-        Retired: 0,
-      }
-    );
-
-    return { count, ...byStatus };
-  }, [assets]);
+  const stats = useMemo(() => ({
+    count: assets.length,
+    assigned: assets.filter(a => a.status === "Assigned").length,
+    available: assets.filter(a => a.status === "Available").length,
+  }), [assets]);
 
   const handleSave = (asset) => {
-    if (asset.id && !hasPermission(PERMISSIONS.EDIT_ASSET)) {
-      setAlert({ type: "danger", message: "You don't have permission to edit assets." });
-      return;
-    }
-    if (!asset.id && !hasPermission(PERMISSIONS.ADD_ASSET)) {
-      setAlert({ type: "danger", message: "You don't have permission to add assets." });
-      return;
-    }
-
-    if (asset.id) {
-      updateAsset(asset);
-      setAlert({ type: "success", message: "Asset updated successfully." });
-    } else {
-      addAsset(asset);
-      setAlert({ type: "success", message: "Asset added successfully." });
-    }
+    asset.id ? updateAsset(asset) : addAsset(asset);
     setActiveAsset(null);
-    window.setTimeout(() => setAlert(null), 2500);
-  };
-
-  const handleDelete = (id) => {
-    if (!hasPermission(PERMISSIONS.DELETE_ASSET)) {
-      setAlert({ type: "danger", message: "You don't have permission to delete assets." });
-      return;
-    }
-
-    if (!window.confirm("Are you sure you want to delete this asset?")) {
-      return;
-    }
-    deleteAsset(id);
-    setAlert({ type: "warning", message: "Asset removed." });
-    window.setTimeout(() => setAlert(null), 2500);
   };
 
   return (
     <div>
-      <div className="d-flex justify-content-between mb-3 align-items-center">
-        <div>
-          <h3>Asset Inventory</h3>
-          <p className="text-muted mb-0">Manage your organization&apos;s assets and track status in real time.</p>
-        </div>
-        <button
-          className="btn btn-primary"
-          onClick={() => setActiveAsset(null)}
-          type="button"
-        >
-          Add Asset
-        </button>
-      </div>
-
-      {alert && (
-        <div className={`alert alert-${alert.type} py-2`} role="alert">
-          {alert.message}
-        </div>
-      )}
+      <h3>Assets</h3>
 
       <AssetForm
         initialData={activeAsset}
@@ -107,34 +38,17 @@ export default function AssetsPage() {
         onCancel={() => setActiveAsset(null)}
       />
 
-      <div className="row mb-4">
-        <div className="col-md-3 mb-3">
-          <div className="card bg-primary text-white p-3 h-100">
-            <h2 className="mb-0">{stats.count}</h2>
-            <div>Total Assets</div>
-          </div>
-        </div>
-        <div className="col-md-3 mb-3">
-          <div className="card bg-success text-white p-3 h-100">
-            <h2 className="mb-0">{stats.Assigned}</h2>
-            <div>Assigned</div>
-          </div>
-        </div>
-        <div className="col-md-3 mb-3">
-          <div className="card bg-warning text-dark p-3 h-100">
-            <h2 className="mb-0">{stats.Available}</h2>
-            <div>Available</div>
-          </div>
-        </div>
-        <div className="col-md-3 mb-3">
-          <div className="card bg-danger text-white p-3 h-100">
-            <h2 className="mb-0">{stats.Maintenance}</h2>
-            <div>Maintenance</div>
-          </div>
-        </div>
+      <div className="row mb-3">
+        <div className="col">Total: {stats.count}</div>
+        <div className="col">Assigned: {stats.assigned}</div>
+        <div className="col">Available: {stats.available}</div>
       </div>
 
-      <AssetTable assets={assets} onEdit={(asset) => setActiveAsset(asset)} onDelete={handleDelete} />
+      <AssetTable
+        assets={assets}
+        onEdit={setActiveAsset}
+        onDelete={deleteAsset}
+      />
     </div>
   );
 }

@@ -3,14 +3,14 @@ import { useApp } from "../../core/useApp";
 import DataTable from "../../shared/components/DataTable";
 
 export default function AssetTable({ assets, onEdit, onDelete }) {
-  const { users, hasPermission, PERMISSIONS } = useApp();
+  const { user, hasPermission, PERMISSIONS } = useApp();
+
   const [filters, setFilters] = useState({
     status: "",
     category: "",
     assignedTo: "",
   });
 
-  // Debounced search term
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [searchTimeout, setSearchTimeout] = useState(null);
 
@@ -20,33 +20,26 @@ export default function AssetTable({ assets, onEdit, onDelete }) {
     setSearchTimeout(timeout);
   }, [searchTimeout]);
 
-  // Filter assets based on permissions and filters
   const filteredAssets = useMemo(() => {
     let filtered = assets;
 
-    // Apply permission-based filtering
+    // ✅ FIXED: Use context user instead of localStorage
     if (!hasPermission(PERMISSIONS.VIEW_ALL_ASSETS)) {
-      // Employees can only see their own assets
-      const currentUser = users.find(u => u.id === users.find(u => u.email === localStorage.getItem('current_user_email'))?.id);
-      filtered = filtered.filter(asset => asset.assignedTo === currentUser?.id);
+      filtered = filtered.filter(asset => asset.assignedTo === user?.id);
     }
 
-    // Apply status filter
     if (filters.status) {
       filtered = filtered.filter(asset => asset.status === filters.status);
     }
 
-    // Apply category filter
     if (filters.category) {
       filtered = filtered.filter(asset => asset.category === filters.category);
     }
 
-    // Apply assigned user filter
     if (filters.assignedTo) {
       filtered = filtered.filter(asset => asset.assignedTo?.toString() === filters.assignedTo);
     }
 
-    // Apply search filter
     if (debouncedSearch) {
       const term = debouncedSearch.toLowerCase();
       filtered = filtered.filter(asset =>
@@ -57,9 +50,8 @@ export default function AssetTable({ assets, onEdit, onDelete }) {
     }
 
     return filtered;
-  }, [assets, filters, debouncedSearch, hasPermission, PERMISSIONS, users]);
+  }, [assets, filters, debouncedSearch, hasPermission, PERMISSIONS, user]);
 
-  // Get unique categories and statuses for filter options
   const filterOptions = useMemo(() => {
     const categories = [...new Set(assets.map(a => a.category).filter(Boolean))];
     const statuses = [...new Set(assets.map(a => a.status).filter(Boolean))];
@@ -67,7 +59,6 @@ export default function AssetTable({ assets, onEdit, onDelete }) {
     return { categories, statuses };
   }, [assets]);
 
-  // Define table columns
   const columns = useMemo(() => [
     {
       key: "name",
@@ -105,8 +96,7 @@ export default function AssetTable({ assets, onEdit, onDelete }) {
       header: "Assigned To",
       render: (value) => {
         if (!value) return <span className="text-muted">Unassigned</span>;
-        const user = users.find(u => u.id === value);
-        return user ? user.name : "Unknown User";
+        return <span>User ID: {value}</span>; // backend will map later
       },
     },
     {
@@ -128,9 +118,8 @@ export default function AssetTable({ assets, onEdit, onDelete }) {
               className="btn btn-sm btn-outline-primary"
               onClick={() => onEdit(asset)}
               type="button"
-              title="Edit Asset"
             >
-              <i className="bi bi-pencil"></i> Edit
+              Edit
             </button>
           )}
           {hasPermission(PERMISSIONS.DELETE_ASSET) && (
@@ -138,25 +127,14 @@ export default function AssetTable({ assets, onEdit, onDelete }) {
               className="btn btn-sm btn-outline-danger"
               onClick={() => onDelete(asset.id)}
               type="button"
-              title="Delete Asset"
             >
-              <i className="bi bi-trash"></i> Delete
-            </button>
-          )}
-          {hasPermission(PERMISSIONS.REPORT_ISSUE) && (
-            <button
-              className="btn btn-sm btn-outline-info"
-              onClick={() => alert(`Support for ${asset.name} - Please contact IT support at support@company.com`)}
-              type="button"
-              title="Get Support"
-            >
-              <i className="bi bi-headset"></i> Support
+              Delete
             </button>
           )}
         </div>
       ),
     },
-  ], [users, hasPermission, PERMISSIONS, onEdit, onDelete]);
+  ], [hasPermission, PERMISSIONS, onEdit, onDelete]);
 
   const handleFilterChange = (filterKey, value) => {
     setFilters(prev => ({ ...prev, [filterKey]: value }));
@@ -166,13 +144,12 @@ export default function AssetTable({ assets, onEdit, onDelete }) {
     <div className="card p-3">
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h5 className="mb-0">Asset Inventory</h5>
+
         <div className="d-flex gap-2">
-          {/* Status Filter */}
           <select
             className="form-select form-select-sm"
             value={filters.status}
             onChange={(e) => handleFilterChange("status", e.target.value)}
-            style={{ minWidth: 120 }}
           >
             <option value="">All Statuses</option>
             {filterOptions.statuses.map(status => (
@@ -180,44 +157,26 @@ export default function AssetTable({ assets, onEdit, onDelete }) {
             ))}
           </select>
 
-          {/* Category Filter */}
           <select
             className="form-select form-select-sm"
             value={filters.category}
             onChange={(e) => handleFilterChange("category", e.target.value)}
-            style={{ minWidth: 120 }}
           >
             <option value="">All Categories</option>
             {filterOptions.categories.map(category => (
               <option key={category} value={category}>{category}</option>
             ))}
           </select>
-
-          {/* Assigned User Filter */}
-          {hasPermission(PERMISSIONS.VIEW_ALL_ASSETS) && (
-            <select
-              className="form-select form-select-sm"
-              value={filters.assignedTo}
-              onChange={(e) => handleFilterChange("assignedTo", e.target.value)}
-              style={{ minWidth: 140 }}
-            >
-              <option value="">All Users</option>
-              {users.map(user => (
-                <option key={user.id} value={user.id}>{user.name}</option>
-              ))}
-            </select>
-          )}
         </div>
       </div>
 
       <DataTable
         data={filteredAssets}
         columns={columns}
-        searchable={true}
-        sortable={true}
-        paginated={true}
+        searchable
+        sortable
+        paginated
         pageSize={10}
-        emptyMessage="No assets match the current filters"
         onSearchChange={handleSearchChange}
       />
     </div>

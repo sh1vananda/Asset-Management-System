@@ -2,29 +2,20 @@
 import { useApp } from "../../core/useApp";
 
 export default function DashboardCards() {
-  const { assets } = useApp();
+  const { assets = [] } = useApp(); // ✅ GLOBAL STATE
 
   const stats = useMemo(() => {
-    const count = assets.length;
-    const byStatus = assets.reduce(
-      (acc, asset) => {
-        const status = asset.status || "Unknown";
-        acc[status] = (acc[status] || 0) + 1;
-        return acc;
-      },
-      {
-        Available: 0,
-        Assigned: 0,
-        Maintenance: 0,
-        Retired: 0,
-      }
-    );
+    const total = assets.length;
+
+    const assigned = assets.filter(a => a.status === "Assigned").length;
+    const available = assets.filter(a => a.status === "Available").length;
+    const maintenance = assets.filter(a => a.status === "Maintenance").length;
 
     return [
-      { title: "Total Assets", value: count, className: "card-blue" },
-      { title: "Assigned", value: byStatus.Assigned, className: "card-green" },
-      { title: "Available", value: byStatus.Available, className: "card-yellow" },
-      { title: "Maintenance", value: byStatus.Maintenance, className: "card-red" },
+      { title: "Total Assets", value: total, className: "card-blue" },
+      { title: "Assigned", value: assigned, className: "card-green" },
+      { title: "Available", value: available, className: "card-yellow" },
+      { title: "Maintenance", value: maintenance, className: "card-red" },
     ];
   }, [assets]);
 

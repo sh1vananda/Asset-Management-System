@@ -1,8 +1,8 @@
 import DashboardCards from "./DashboardCards";
 import AssetChart from "./AssetChart";
 
-export default function DashboardPage(){
-  return(
+export default function DashboardPage() {
+  return (
     <div>
       <h2 className="mb-4">Dashboard</h2>
 

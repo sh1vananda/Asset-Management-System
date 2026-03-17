@@ -1,17 +1,20 @@
 ﻿import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useApp } from "../../core/useApp";
+import { useAuth } from "./useAuth";
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login } = useApp();
+
+  const { setUser } = useApp(); // 🔥 IMPORTANT
+  const { login, loading } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  const from = (location.state && location.state.from?.pathname) || "/dashboard";
+  const from = location.state?.from?.pathname || "/dashboard";
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -21,11 +24,17 @@ export default function LoginPage() {
       return;
     }
 
+    setError("");
+
     const result = await login(email, password);
+
     if (!result.success) {
       setError(result.message);
       return;
     }
+
+    // 🔥 CRITICAL: set user in global state
+    setUser(result.user);
 
     navigate(from, { replace: true });
   };
@@ -61,8 +70,12 @@ export default function LoginPage() {
             />
           </div>
 
-          <button className="btn btn-primary w-100" type="submit">
-            Login
+          <button
+            className="btn btn-primary w-100"
+            type="submit"
+            disabled={loading}
+          >
+            {loading ? "Logging in..." : "Login"}
           </button>
         </form>
 
@@ -75,4 +88,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
