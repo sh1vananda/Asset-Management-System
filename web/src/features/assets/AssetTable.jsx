@@ -130,7 +130,7 @@ export default function AssetTable({ assets, onEdit, onDelete }) {
               type="button"
               title="Edit Asset"
             >
-              <i className="bi bi-pencil"></i>
+              <i className="bi bi-pencil"></i> Edit
             </button>
           )}
           {hasPermission(PERMISSIONS.DELETE_ASSET) && (
@@ -140,7 +140,17 @@ export default function AssetTable({ assets, onEdit, onDelete }) {
               type="button"
               title="Delete Asset"
             >
-              <i className="bi bi-trash"></i>
+              <i className="bi bi-trash"></i> Delete
+            </button>
+          )}
+          {hasPermission(PERMISSIONS.REPORT_ISSUE) && (
+            <button
+              className="btn btn-sm btn-outline-info"
+              onClick={() => alert(`Support for ${asset.name} - Please contact IT support at support@company.com`)}
+              type="button"
+              title="Get Support"
+            >
+              <i className="bi bi-headset"></i> Support
             </button>
           )}
         </div>

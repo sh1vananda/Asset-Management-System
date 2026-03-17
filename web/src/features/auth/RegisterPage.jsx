@@ -12,7 +12,7 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
 
     if (!name.trim() || !email.trim() || !password.trim()) {
@@ -21,7 +21,7 @@ export default function RegisterPage() {
       return;
     }
 
-    const result = register(name, email, password);
+    const result = await register(name, email, password);
     if (!result.success) {
       setError(result.message);
       setSuccess("");

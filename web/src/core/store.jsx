@@ -9,6 +9,7 @@ const STORAGE_KEYS = {
 };
 
 import { ROLES, PERMISSIONS, ROLE_PERMISSIONS } from "./constants";
+import { loginApi, registerApi } from "../features/auth/authService";
 
 const defaultAssets = [
   {
@@ -109,7 +110,7 @@ export function AppProvider({ children }) {
   const [assets, setAssets] = useState(() => readFromStorage(STORAGE_KEYS.assets, defaultAssets));
   const [users, setUsers] = useState(() => readFromStorage(STORAGE_KEYS.users, defaultUsers));
   const [assignments] = useState(() => readFromStorage(STORAGE_KEYS.assignments, defaultAssignments));
-  const [issues] = useState(() => readFromStorage(STORAGE_KEYS.issues, defaultIssues));
+  const [issues, setIssues] = useState(() => readFromStorage(STORAGE_KEYS.issues, defaultIssues));
 
   useEffect(() => {
     writeToStorage(STORAGE_KEYS.assets, assets);
@@ -142,30 +143,29 @@ export function AppProvider({ children }) {
     return userPermissions.includes(permission);
   }, [user]);
 
-  const login = useCallback((email, password) => {
-    const existing = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
-    if (!existing) {
-      return { success: false, message: "No user found with that email." };
+  const login = useCallback(async (email, password) => {
+    const result = await loginApi(email, password);
+    if (result.success) {
+      const { access_token, user } = result.data;
+      localStorage.setItem("access_token", access_token);
+      setUser(user);
+      return { success: true };
+    } else {
+      return { success: false, message: result.message };
     }
-    if (existing.password !== password) {
-      return { success: false, message: "Invalid password." };
-    }
-    setUser({ id: existing.id, name: existing.name, email: existing.email, role: existing.role });
-    return { success: true };
-  }, [users]);
+  }, []);
 
-  const register = useCallback((name, email, password) => {
-    const normalizedEmail = email.toLowerCase().trim();
-    if (users.some((u) => u.email.toLowerCase() === normalizedEmail)) {
-      return { success: false, message: "An account with that email already exists." };
+  const register = useCallback(async (name, email, password) => {
+    const result = await registerApi(name, email, password);
+    if (result.success) {
+      const { access_token, user } = result.data;
+      localStorage.setItem("access_token", access_token);
+      setUser(user);
+      return { success: true };
+    } else {
+      return { success: false, message: result.message };
     }
-    const nextId = Math.max(0, ...users.map((u) => u.id)) + 1;
-    const newUser = { id: nextId, name: name.trim(), email: normalizedEmail, password, role: ROLES.EMPLOYEE };
-    const nextUsers = [...users, newUser];
-    setUsers(nextUsers);
-    setUser({ id: newUser.id, name: newUser.name, email: newUser.email, role: newUser.role });
-    return { success: true };
-  }, [users]);
+  }, []);
 
   const logout = () => {
     setUser(null);
@@ -183,6 +183,43 @@ export function AppProvider({ children }) {
     setAssets([...assets, newAsset]);
   }, [assets]);
 
+  // Issue operations
+  const reportIssue = useCallback((assetId, title, description, priority) => {
+    const nextId = Math.max(0, ...issues.map((i) => i.id)) + 1;
+    const newIssue = {
+      id: nextId,
+      assetId: parseInt(assetId),
+      reportedBy: user.id,
+      title: title.trim(),
+      description: description.trim(),
+      status: "Open",
+      priority,
+      reportedDate: new Date().toISOString().split("T")[0],
+      resolvedDate: null,
+    };
+    setIssues([...issues, newIssue]);
+  }, [issues, user]);
+
+  const updateIssueStatus = useCallback((issueId, newStatus) => {
+    setIssues(issues.map(issue =>
+      issue.id === issueId
+        ? {
+            ...issue,
+            status: newStatus,
+            resolvedDate: newStatus === "Closed" ? new Date().toISOString().split("T")[0] : issue.resolvedDate
+          }
+        : issue
+    ));
+  }, [issues]);
+
+  const returnAsset = useCallback((assignmentId) => {
+    setAssignments(assignments.map(assignment =>
+      assignment.id === assignmentId
+        ? { ...assignment, returnDate: new Date().toISOString().split("T")[0] }
+        : assignment
+    ));
+  }, [assignments]);
+
   const value = useMemo(
     () => ({
       user,
@@ -194,10 +231,13 @@ export function AppProvider({ children }) {
       register,
       logout,
       addAsset,
+      reportIssue,
+      updateIssueStatus,
+      returnAsset,
       hasPermission,
       PERMISSIONS,
     }),
-    [user, assets, users, assignments, issues, login, register, addAsset, hasPermission]
+    [user, assets, users, assignments, issues, login, register, addAsset, reportIssue, updateIssueStatus, returnAsset, hasPermission]
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

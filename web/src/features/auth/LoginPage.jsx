@@ -13,7 +13,7 @@ export default function LoginPage() {
 
   const from = (location.state && location.state.from?.pathname) || "/dashboard";
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
 
     if (!email.trim() || !password.trim()) {
@@ -21,7 +21,7 @@ export default function LoginPage() {
       return;
     }
 
-    const result = login(email, password);
+    const result = await login(email, password);
     if (!result.success) {
       setError(result.message);
       return;

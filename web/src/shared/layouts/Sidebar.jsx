@@ -1,72 +1,51 @@
-import { NavLink } from "react-router-dom";
+﻿import { NavLink } from "react-router-dom";
 import { useApp } from "../../core/useApp";
-import {
-  LayoutDashboard,
-  Package,
-  ClipboardList,
-  AlertCircle
-} from "lucide-react";
 
 export default function Sidebar() {
   const { hasPermission, PERMISSIONS } = useApp();
 
   const linkClass = ({ isActive }) =>
-    `d-flex align-items-center gap-2 px-4 py-3 mb-1 rounded text-decoration-none ${
+    `d-block px-4 py-3 mb-1 rounded ${
       isActive ? "bg-primary text-white" : "text-dark"
     }`;
 
   return (
-    <div
-      className="sidebar bg-white shadow-sm d-flex flex-column"
-      style={{
-        width: "250px",
-        height: "100vh",
-        position: "fixed",
-        top: 0,
-        left: 0,
-        overflowY: "auto"
-      }}
-    >
-      {/* Header */}
+    <div className="sidebar col-md-2 p-0 shadow-sm d-flex flex-column" style={{ height: '100vh', position: 'sticky', top: 0 }}>
       <div className="p-4 border-bottom">
         <h4 className="mb-0">Asset Manager</h4>
         <small className="text-muted">Enterprise Edition</small>
       </div>
 
-      {/* Navigation */}
       <nav className="p-2 flex-grow-1">
-
         {hasPermission(PERMISSIONS.VIEW_DASHBOARD) && (
           <NavLink to="/dashboard" className={linkClass}>
-            <LayoutDashboard size={18} />
-            Dashboard
+            <i className="bi bi-speedometer2 me-2"></i> Dashboard
           </NavLink>
         )}
-
-        {(hasPermission(PERMISSIONS.VIEW_ALL_ASSETS) ||
-          hasPermission(PERMISSIONS.VIEW_OWN_ASSETS)) && (
+        {(hasPermission(PERMISSIONS.VIEW_ALL_ASSETS) || hasPermission(PERMISSIONS.VIEW_OWN_ASSETS)) && (
           <NavLink to="/assets" className={linkClass}>
-            <Package size={18} />
-            Assets
+            <i className="bi bi-box-seam me-2"></i> Assets
           </NavLink>
         )}
-
         {hasPermission(PERMISSIONS.ASSIGN_ASSET) && (
           <NavLink to="/assignments" className={linkClass}>
-            <ClipboardList size={18} />
-            Assignments
+            <i className="bi bi-people-fill me-2"></i> Assignments
           </NavLink>
         )}
-
-        {(hasPermission(PERMISSIONS.REPORT_ISSUE) ||
-          hasPermission(PERMISSIONS.UPDATE_ISSUE_STATUS)) && (
+        {(hasPermission(PERMISSIONS.REPORT_ISSUE) || hasPermission(PERMISSIONS.UPDATE_ISSUE_STATUS)) && (
           <NavLink to="/issues" className={linkClass}>
-            <AlertCircle size={18} />
-            Issues
+            <i className="bi bi-exclamation-circle me-2"></i> Issues
           </NavLink>
         )}
-
       </nav>
+
+      <div className="p-3 border-top mt-auto">
+        <div className="text-center">
+          <small className="text-muted">© 2024 Asset Manager</small>
+          <br />
+          <small className="text-muted">Version 1.0.0</small>
+        </div>
+      </div>
     </div>
   );
 }
