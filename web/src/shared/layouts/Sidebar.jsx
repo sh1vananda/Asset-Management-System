@@ -17,8 +17,15 @@ export default function Sidebar() {
 
   return (
     <div
-      className="sidebar col-md-2 p-0 shadow-sm d-flex flex-column"
-      style={{ minHeight: "100vh" }}
+      className="sidebar bg-white shadow-sm d-flex flex-column"
+      style={{
+        width: "250px",
+        height: "100vh",
+        position: "fixed",
+        top: 0,
+        left: 0,
+        overflowY: "auto"
+      }}
     >
       {/* Header */}
       <div className="p-4 border-bottom">
