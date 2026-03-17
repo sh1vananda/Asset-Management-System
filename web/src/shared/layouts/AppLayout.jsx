@@ -4,20 +4,16 @@ import { Outlet } from "react-router-dom";
 
 export default function AppLayout() {
   return (
-    <div className="d-flex">
-
+    <div>
       <Sidebar />
 
-      <div className="flex-grow-1">
-
+      <div style={{ marginLeft: "250px" }}>
         <Navbar />
 
         <div className="container-fluid p-4">
           <Outlet />
         </div>
-
       </div>
-
     </div>
   );
 }
