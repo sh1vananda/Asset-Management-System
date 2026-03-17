@@ -28,6 +28,9 @@ def create_app(config_class=Config):
     from app.modules.issues.models import Issue
     from app.modules.issues.models import Issue
 
+    from app.modules.assets.events import register_listeners
+    register_listeners()
+
     from app.modules.issues.routes import issue_bp
     app.register_blueprint(issue_bp)
 

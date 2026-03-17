@@ -67,3 +67,6 @@ def change_issue_status(issue_id):
 
     except ValidationError as err:
         return jsonify({"error": err.messages}), 400
+
+    except ValueError as err:
+        return jsonify({"error": str(err)}), 400

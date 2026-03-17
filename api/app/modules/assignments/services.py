@@ -1,7 +1,7 @@
 from datetime import datetime
 from app.core.database import db
 from .models import Assignment
-
+from app.core.domain_events import dispatch_event
 
 def assign_asset(asset_id, user_id):
 
@@ -22,6 +22,11 @@ def assign_asset(asset_id, user_id):
     db.session.add(assignment)
     db.session.commit()
 
+    dispatch_event("asset_assigned", {
+    "asset_id": asset_id,
+    "user_id": user_id
+})
+
     return assignment
 
 def return_asset(assignment_id):
@@ -35,6 +40,10 @@ def return_asset(assignment_id):
     assignment.returned_at = datetime.utcnow()
 
     db.session.commit()
+
+    dispatch_event("asset_returned", {
+    "asset_id": assignment.asset_id
+})
 
     return assignment
 
