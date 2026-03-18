@@ -1,9 +1,16 @@
-// Role-Based Access Control (RBAC) Permissions Matrix
+// ==========================================
+// ROLE DEFINITIONS (MATCH BACKEND EXACTLY)
+// ==========================================
+
 export const ROLES = {
-  ADMIN: "Admin",
-  IT_MANAGER: "IT Manager",
-  EMPLOYEE: "Employee",
+  ADMIN: "admin",
+  IT_MANAGER: "it_manager",
+  EMPLOYEE: "employee",
 };
+
+// ==========================================
+// PERMISSIONS LIST
+// ==========================================
 
 export const PERMISSIONS = {
   // Assets
@@ -30,31 +37,28 @@ export const PERMISSIONS = {
   VIEW_DASHBOARD: "view_dashboard",
 };
 
+// ==========================================
+// ROLE → PERMISSIONS MAPPING
+// ==========================================
+
 export const ROLE_PERMISSIONS = {
-  [ROLES.ADMIN]: [
-    PERMISSIONS.ADD_ASSET,
-    PERMISSIONS.EDIT_ASSET,
-    PERMISSIONS.DELETE_ASSET,
-    PERMISSIONS.VIEW_ALL_ASSETS,
-    PERMISSIONS.ASSIGN_ASSET,
-    PERMISSIONS.RETURN_ASSET,
-    PERMISSIONS.REPORT_ISSUE,
-    PERMISSIONS.UPDATE_ISSUE_STATUS,
-    PERMISSIONS.CLOSE_ISSUE,
-    PERMISSIONS.VIEW_ALL_USERS,
-    PERMISSIONS.UPDATE_USER_ROLES,
-    PERMISSIONS.VIEW_DASHBOARD,
-  ],
+  // 🔥 ADMIN → FULL ACCESS
+  [ROLES.ADMIN]: Object.values(PERMISSIONS),
+
+  // 🔧 IT MANAGER → LIMITED ADMIN
   [ROLES.IT_MANAGER]: [
     PERMISSIONS.ADD_ASSET,
-    PERMISSIONS.EDIT_ASSET, // Note: IT Managers can edit but not delete
+    PERMISSIONS.EDIT_ASSET,
     PERMISSIONS.VIEW_ALL_ASSETS,
     PERMISSIONS.ASSIGN_ASSET,
     PERMISSIONS.RETURN_ASSET,
     PERMISSIONS.REPORT_ISSUE,
     PERMISSIONS.UPDATE_ISSUE_STATUS,
     PERMISSIONS.CLOSE_ISSUE,
+    PERMISSIONS.VIEW_DASHBOARD,
   ],
+
+  // 👤 EMPLOYEE → LIMITED ACCESS
   [ROLES.EMPLOYEE]: [
     PERMISSIONS.VIEW_OWN_ASSETS,
     PERMISSIONS.REPORT_ISSUE,
