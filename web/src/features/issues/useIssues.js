@@ -3,7 +3,7 @@ import api from "../../core/api";
 import { useApp } from "../../core/useApp";
 
 export const useIssues = () => {
-  const { issues, setIssues } = useApp();
+  const { issues, setIssues, user } = useApp();
 
   useEffect(() => {
     fetchIssues();
@@ -11,48 +11,36 @@ export const useIssues = () => {
 
   const fetchIssues = async () => {
     try {
-      // const res = await api.get("/issues");
-      // setIssues(res.data);
+      const res = await api.get("/issues");
 
-      // 🔥 MOCK
-      setIssues([
-        {
-          id: 1,
-          assetId: 1,
-          reportedBy: 1,
-          title: "Screen flickering",
-          description: "Laptop issue",
-          status: "Open",
-          priority: "Medium",
-          reportedDate: "2024-01-15",
-        },
-      ]);
+      setIssues(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
-      console.error(err);
+      console.error("ISSUES ERROR:", err.response?.data);
+      setIssues([]);
     }
   };
 
-  const reportIssue = async (data) => {
+  const reportIssue = async (assetId, description) => {
     try {
-      // await api.post("/issues", data);
+      const payload = {
+        asset_id: Number(assetId),
+        description,
+        reported_by: user?.id,
+      };
 
-      setIssues((prev) => [...prev, { ...data, id: Date.now() }]);
+      await api.post("/issues", payload);
+      fetchIssues();
     } catch (err) {
-      console.error(err);
+      console.error("REPORT ISSUE ERROR:", err.response?.data);
     }
   };
 
   const updateIssueStatus = async (id, status) => {
     try {
-      // await api.put(`/issues/${id}`, { status });
-
-      setIssues((prev) =>
-        prev.map((i) =>
-          i.id === id ? { ...i, status } : i
-        )
-      );
+      await api.patch(`/issues/${id}/status`, { status });
+      fetchIssues();
     } catch (err) {
-      console.error(err);
+      console.error("UPDATE ISSUE ERROR:", err.response?.data);
     }
   };
 

@@ -8,7 +8,6 @@ export default function AssetTable({ assets, onEdit, onDelete }) {
   const [filters, setFilters] = useState({
     status: "",
     category: "",
-    assignedTo: "",
   });
 
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -21,162 +20,106 @@ export default function AssetTable({ assets, onEdit, onDelete }) {
   }, [searchTimeout]);
 
   const filteredAssets = useMemo(() => {
-    let filtered = assets;
+    let filtered = [...assets];
 
-    // ✅ FIXED: Use context user instead of localStorage
     if (!hasPermission(PERMISSIONS.VIEW_ALL_ASSETS)) {
-      filtered = filtered.filter(asset => asset.assignedTo === user?.id);
+      filtered = filtered.filter(a => a.assignedTo === user?.id);
     }
 
     if (filters.status) {
-      filtered = filtered.filter(asset => asset.status === filters.status);
+      filtered = filtered.filter(a => a.status === filters.status);
     }
 
     if (filters.category) {
-      filtered = filtered.filter(asset => asset.category === filters.category);
-    }
-
-    if (filters.assignedTo) {
-      filtered = filtered.filter(asset => asset.assignedTo?.toString() === filters.assignedTo);
+      filtered = filtered.filter(a => a.category === filters.category);
     }
 
     if (debouncedSearch) {
       const term = debouncedSearch.toLowerCase();
-      filtered = filtered.filter(asset =>
-        [asset.name, asset.category, asset.brand, asset.model, asset.status, asset.location]
+      filtered = filtered.filter(a =>
+        [a.name, a.category, a.brand, a.model, a.status, a.location]
           .filter(Boolean)
-          .some(field => field.toString().toLowerCase().includes(term))
+          .some(field => field.toLowerCase().includes(term))
       );
     }
 
     return filtered;
-  }, [assets, filters, debouncedSearch, hasPermission, PERMISSIONS, user]);
+  }, [assets, filters, debouncedSearch, user]);
 
   const filterOptions = useMemo(() => {
-    const categories = [...new Set(assets.map(a => a.category).filter(Boolean))];
-    const statuses = [...new Set(assets.map(a => a.status).filter(Boolean))];
-
-    return { categories, statuses };
+    return {
+      categories: [...new Set(assets.map(a => a.category))],
+      statuses: [...new Set(assets.map(a => a.status))],
+    };
   }, [assets]);
 
-  const columns = useMemo(() => [
+  const columns = [
     {
       key: "name",
       header: "Asset Name",
-      render: (value, asset) => (
+      render: (v, a) => (
         <div>
-          <div className="fw-bold">{value}</div>
-          <small className="text-muted">{asset.brand} {asset.model}</small>
+          <b>{v}</b>
+          <div className="text-muted small">{a.brand} {a.model}</div>
         </div>
       ),
     },
-    {
-      key: "category",
-      header: "Category",
-    },
+    { key: "category", header: "Category" },
     {
       key: "status",
       header: "Status",
-      render: (value) => {
-        const statusColors = {
-          Available: "success",
-          Assigned: "primary",
-          Maintenance: "warning",
-          Retired: "secondary",
-        };
-        return (
-          <span className={`badge bg-${statusColors[value] || "secondary"}`}>
-            {value}
-          </span>
-        );
-      },
+      render: (v) => <span className="badge bg-success">{v}</span>,
     },
     {
       key: "assignedTo",
       header: "Assigned To",
-      render: (value) => {
-        if (!value) return <span className="text-muted">Unassigned</span>;
-        return <span>User ID: {value}</span>; // backend will map later
-      },
+      render: (v) => v ? `User ${v}` : "Unassigned",
     },
-    {
-      key: "location",
-      header: "Location",
-    },
+    { key: "location", header: "Location" },
     {
       key: "purchaseDate",
       header: "Purchase Date",
-      render: (value) => value ? new Date(value).toLocaleDateString() : "—",
+      render: (v) => new Date(v).toLocaleDateString(),
     },
     {
       key: "actions",
       header: "Actions",
-      render: (value, asset) => (
-        <div className="d-flex gap-1">
-          {hasPermission(PERMISSIONS.EDIT_ASSET) && (
-            <button
-              className="btn btn-sm btn-outline-primary"
-              onClick={() => onEdit(asset)}
-              type="button"
-            >
-              Edit
-            </button>
-          )}
-          {hasPermission(PERMISSIONS.DELETE_ASSET) && (
-            <button
-              className="btn btn-sm btn-outline-danger"
-              onClick={() => onDelete(asset.id)}
-              type="button"
-            >
-              Delete
-            </button>
-          )}
-        </div>
+      render: (_, asset) => (
+        <>
+          <button onClick={() => onEdit(asset)} className="btn btn-sm btn-primary me-1">Edit</button>
+          <button onClick={() => onDelete(asset.id)} className="btn btn-sm btn-danger">Delete</button>
+        </>
       ),
     },
-  ], [hasPermission, PERMISSIONS, onEdit, onDelete]);
-
-  const handleFilterChange = (filterKey, value) => {
-    setFilters(prev => ({ ...prev, [filterKey]: value }));
-  };
+  ];
 
   return (
     <div className="card p-3">
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <h5 className="mb-0">Asset Inventory</h5>
+      <div className="d-flex gap-2 mb-3">
+        <select
+          className="form-select form-select-sm"
+          value={filters.status}
+          onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
+        >
+          <option value="">All Statuses</option>
+          {filterOptions.statuses.map(s => <option key={s}>{s}</option>)}
+        </select>
 
-        <div className="d-flex gap-2">
-          <select
-            className="form-select form-select-sm"
-            value={filters.status}
-            onChange={(e) => handleFilterChange("status", e.target.value)}
-          >
-            <option value="">All Statuses</option>
-            {filterOptions.statuses.map(status => (
-              <option key={status} value={status}>{status}</option>
-            ))}
-          </select>
-
-          <select
-            className="form-select form-select-sm"
-            value={filters.category}
-            onChange={(e) => handleFilterChange("category", e.target.value)}
-          >
-            <option value="">All Categories</option>
-            {filterOptions.categories.map(category => (
-              <option key={category} value={category}>{category}</option>
-            ))}
-          </select>
-        </div>
+        <select
+          className="form-select form-select-sm"
+          value={filters.category}
+          onChange={(e) => setFilters(prev => ({ ...prev, category: e.target.value }))}
+        >
+          <option value="">All Categories</option>
+          {filterOptions.categories.map(c => <option key={c}>{c}</option>)}
+        </select>
       </div>
 
       <DataTable
         data={filteredAssets}
         columns={columns}
         searchable
-        sortable
         paginated
-        pageSize={10}
         onSearchChange={handleSearchChange}
       />
     </div>

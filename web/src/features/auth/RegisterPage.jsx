@@ -1,12 +1,12 @@
 ﻿import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useApp } from "../../core/useApp";
+import { useAuth } from "../../features/auth/useAuth"; // ✅ FIXED
 
 export default function RegisterPage() {
   const navigate = useNavigate();
-  const { register } = useApp();
+  const { register } = useAuth(); // ✅ FIXED
 
-  const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -15,13 +15,15 @@ export default function RegisterPage() {
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    if (!name.trim() || !email.trim() || !password.trim()) {
+    // validation
+    if (!username.trim() || !email.trim() || !password.trim()) {
       setError("All fields are required.");
       setSuccess("");
       return;
     }
 
-    const result = await register(name, email, password);
+    const result = await register(username, email, password);
+
     if (!result.success) {
       setError(result.message);
       setSuccess("");
@@ -45,28 +47,30 @@ export default function RegisterPage() {
         {success && <div className="alert alert-success">{success}</div>}
 
         <form onSubmit={handleSubmit}>
+          {/* USERNAME */}
           <div className="mb-3">
-            <label className="form-label">Name</label>
+            <label className="form-label">Username</label>
             <input
               className="form-control"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Your full name"
-              autoComplete="name"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Enter username"
             />
           </div>
 
+          {/* EMAIL */}
           <div className="mb-3">
             <label className="form-label">Email</label>
             <input
               className="form-control"
+              type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
-              autoComplete="email"
             />
           </div>
 
+          {/* PASSWORD */}
           <div className="mb-3">
             <label className="form-label">Password</label>
             <input
@@ -75,7 +79,6 @@ export default function RegisterPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Password"
-              autoComplete="new-password"
             />
           </div>
 
@@ -93,4 +96,3 @@ export default function RegisterPage() {
     </div>
   );
 }
-

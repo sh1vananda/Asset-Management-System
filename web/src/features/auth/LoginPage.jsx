@@ -1,42 +1,26 @@
 ﻿import { useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useApp } from "../../core/useApp";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "./useAuth";
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const location = useLocation();
+  const { login } = useAuth();
 
-  const { setUser } = useApp(); // 🔥 IMPORTANT
-  const { login, loading } = useAuth();
-
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState(""); // ✅ FIXED
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  const from = location.state?.from?.pathname || "/dashboard";
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-
-    if (!email.trim() || !password.trim()) {
-      setError("Please provide both email and password.");
-      return;
-    }
-
-    setError("");
-
-    const result = await login(email, password);
+    const result = await login(username, password);
 
     if (!result.success) {
       setError(result.message);
       return;
     }
 
-    // 🔥 CRITICAL: set user in global state
-    setUser(result.user);
-
-    navigate(from, { replace: true });
+    navigate("/dashboard");
   };
 
   return (
@@ -48,35 +32,25 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit}>
           <div className="mb-3">
-            <label className="form-label">Email</label>
+            <label className="form-label">Username</label>
             <input
               className="form-control"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              autoComplete="username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
             />
           </div>
 
           <div className="mb-3">
-            <label className="form-label">Password</label>
+            <label>Password</label>
             <input
-              className="form-control"
               type="password"
+              className="form-control"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password"
-              autoComplete="current-password"
             />
           </div>
 
-          <button
-            className="btn btn-primary w-100"
-            type="submit"
-            disabled={loading}
-          >
-            {loading ? "Logging in..." : "Login"}
-          </button>
+          <button className="btn btn-primary w-100">Login</button>
         </form>
 
         <div className="text-center mt-3">

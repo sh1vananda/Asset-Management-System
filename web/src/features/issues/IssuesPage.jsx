@@ -1,15 +1,17 @@
 import { useState } from "react";
 import { useApp } from "../../core/useApp";
+import { useAssets } from "../assets/useAssets"; // ✅ IMPORTANT
 import DataTable from "../../shared/components/DataTable";
 import ErrorBoundary from "../../shared/components/ErrorBoundary";
 
 export default function IssuesPage() {
+  useAssets(); // 🔥 LOAD ASSETS HERE
+
   const {
     issues = [],
     assets = [],
     users = [],
-    reportIssue,
-    updateIssueStatus,
+    setIssues,
     hasPermission,
     PERMISSIONS,
   } = useApp();
@@ -21,19 +23,35 @@ export default function IssuesPage() {
   }
 
   const issueData = issues.map((issue) => {
-    const asset = assets.find((a) => a.id === issue.assetId);
-    const reportedBy = users.find((u) => u.id === issue.reportedBy);
+    const asset = assets.find((a) => a.id == issue.assetId);
+    const user = users.find((u) => u.id === issue.reportedBy);
 
     return {
       ...issue,
-      assetName: asset?.name || "Unknown Asset",
+      assetName: asset?.name || "Unknown",
       assetCategory: asset?.category || "",
-      reportedByName: reportedBy?.name || "Unknown",
+      reportedByName: user?.name || "User",
     };
   });
 
-  const handleUpdateStatus = (id, status) => {
-    updateIssueStatus(id, status);
+  const addIssue = (assetId, title, desc, priority) => {
+    const newIssue = {
+      id: Date.now(),
+      assetId,
+      title,
+      description: desc,
+      priority,
+      status: "open",
+      reportedBy: 1, // temp user
+    };
+
+    setIssues((prev) => [...prev, newIssue]);
+  };
+
+  const updateIssueStatus = (id, status) => {
+    setIssues((prev) =>
+      prev.map((i) => (i.id === id ? { ...i, status } : i))
+    );
   };
 
   const columns = [
@@ -69,10 +87,10 @@ export default function IssuesPage() {
           className="form-select form-select-sm"
           value={issue.status}
           onChange={(e) =>
-            handleUpdateStatus(issue.id, e.target.value)
+            updateIssueStatus(issue.id, e.target.value)
           }
         >
-          <option>Open</option>
+          <option>open</option>
           <option>In Progress</option>
           <option>Resolved</option>
           <option>Closed</option>
@@ -86,6 +104,7 @@ export default function IssuesPage() {
       <div>
         <div className="d-flex justify-content-between mb-3">
           <h3>Issue Management</h3>
+
           <button
             className="btn btn-primary"
             onClick={() => setShowReportForm(true)}
@@ -94,21 +113,18 @@ export default function IssuesPage() {
           </button>
         </div>
 
-        {/*  KANBAN */}
         <KanbanBoard
           issues={issueData}
-          onUpdateStatus={handleUpdateStatus}
+          onUpdateStatus={updateIssueStatus}
         />
 
-        {/*  TABLE */}
         <DataTable data={issueData} columns={columns} searchable paginated />
 
-        {/*  MODAL */}
         {showReportForm && (
           <IssueForm
             assets={assets}
             onSave={(assetId, title, desc, priority) => {
-              reportIssue(assetId, title, desc, priority);
+              addIssue(assetId, title, desc, priority);
               setShowReportForm(false);
             }}
             onCancel={() => setShowReportForm(false)}
@@ -119,22 +135,22 @@ export default function IssuesPage() {
   );
 }
 
-/*  KANBAN */
+/* ================= KANBAN ================= */
+
 function KanbanBoard({ issues, onUpdateStatus }) {
-  const statuses = ["Open", "In Progress", "Resolved", "Closed"];
+  const statuses = ["open", "In Progress", "Resolved", "Closed"];
 
   return (
     <div className="row mb-4">
-      {statuses.map((status) => (
-        <div key={status} className="col-md-3">
-          <div className="card p-2">
-            <h6>
-              {status} ({issues.filter(i => i.status === status).length})
-            </h6>
+      {statuses.map((status) => {
+        const filtered = issues.filter((i) => i.status === status);
 
-            {issues
-              .filter((i) => i.status === status)
-              .map((issue) => (
+        return (
+          <div key={status} className="col-md-3">
+            <div className="card p-3 h-100">
+              <h6>{status} ({filtered.length})</h6>
+
+              {filtered.map((issue) => (
                 <div key={issue.id} className="card p-2 mb-2">
                   <b>{issue.title}</b>
                   <small>{issue.description}</small>
@@ -146,21 +162,29 @@ function KanbanBoard({ issues, onUpdateStatus }) {
                       onUpdateStatus(issue.id, e.target.value)
                     }
                   >
-                    <option>Open</option>
+                    <option>open</option>
                     <option>In Progress</option>
                     <option>Resolved</option>
                     <option>Closed</option>
                   </select>
                 </div>
               ))}
+
+              {filtered.length === 0 && (
+                <div className="text-muted small text-center">
+                  No issues
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
 
-/*  MODAL */
+/* ================= MODAL ================= */
+
 function IssueForm({ onSave, onCancel, assets }) {
   const [form, setForm] = useState({
     assetId: "",
@@ -171,6 +195,12 @@ function IssueForm({ onSave, onCancel, assets }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    if (!form.assetId || !form.title) {
+      alert("Please fill all fields");
+      return;
+    }
+
     onSave(form.assetId, form.title, form.description, form.priority);
   };
 
@@ -189,11 +219,12 @@ function IssueForm({ onSave, onCancel, assets }) {
 
               <select
                 className="form-select mb-2"
+                value={form.assetId}
                 onChange={(e) =>
                   setForm({ ...form, assetId: e.target.value })
                 }
               >
-                <option>Select Asset</option>
+                <option value="">Select an asset...</option>
                 {assets.map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name}
@@ -239,6 +270,7 @@ function IssueForm({ onSave, onCancel, assets }) {
                 Report Issue
               </button>
             </div>
+
           </form>
 
         </div>

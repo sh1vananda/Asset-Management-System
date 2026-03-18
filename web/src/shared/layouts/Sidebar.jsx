@@ -8,7 +8,13 @@ import {
 } from "lucide-react";
 
 export default function Sidebar() {
-  const { hasPermission, PERMISSIONS } = useApp();
+  const { user } = useApp();
+
+  const role = user?.role?.toLowerCase();
+
+  const isAdmin = role === "admin";
+  const isITManager = role === "it_manager";
+  const isEmployee = role === "employee";
 
   const linkClass = ({ isActive }) =>
     `d-flex align-items-center gap-2 px-4 py-3 mb-1 rounded text-decoration-none ${
@@ -16,47 +22,47 @@ export default function Sidebar() {
     }`;
 
   return (
-    <div
-      className="sidebar p-0 shadow-sm d-flex flex-column h-100"
-      style={{ minHeight: "100vh", background: "#fff" }}
-    >
-      {/* Header */}
+    <div className="sidebar p-0 shadow-sm d-flex flex-column h-100">
       <div className="p-4 border-bottom">
-        <h4 className="mb-0">Asset Manager</h4>
-        <small className="text-muted">Enterprise Edition</small>
+        <h4>Asset Manager</h4>
+        <small className="text-muted">Role: {role}</small>
       </div>
 
-      {/* Navigation */}
       <nav className="p-2 flex-grow-1">
 
-        {hasPermission(PERMISSIONS.VIEW_DASHBOARD) && (
-          <NavLink to="/dashboard" className={linkClass}>
-            <LayoutDashboard size={18} />
-            Dashboard
-          </NavLink>
+        {/* ADMIN + IT MANAGER */}
+        {(isAdmin || isITManager) && (
+          <>
+            <NavLink to="/dashboard" className={linkClass}>
+              <LayoutDashboard size={18} />
+              Dashboard
+            </NavLink>
+
+            <NavLink to="/assets" className={linkClass}>
+              <Package size={18} />
+              Assets
+            </NavLink>
+
+            <NavLink to="/assignments" className={linkClass}>
+              <ClipboardList size={18} />
+              Assignments
+            </NavLink>
+
+            <NavLink to="/issues" className={linkClass}>
+              <AlertCircle size={18} />
+              Issues
+            </NavLink>
+          </>
         )}
 
-        {(hasPermission(PERMISSIONS.VIEW_ALL_ASSETS) ||
-          hasPermission(PERMISSIONS.VIEW_OWN_ASSETS)) && (
-          <NavLink to="/assets" className={linkClass}>
-            <Package size={18} />
-            Assets
-          </NavLink>
-        )}
-
-        {hasPermission(PERMISSIONS.ASSIGN_ASSET) && (
-          <NavLink to="/assignments" className={linkClass}>
-            <ClipboardList size={18} />
-            Assignments
-          </NavLink>
-        )}
-
-        {(hasPermission(PERMISSIONS.REPORT_ISSUE) ||
-          hasPermission(PERMISSIONS.UPDATE_ISSUE_STATUS)) && (
-          <NavLink to="/issues" className={linkClass}>
-            <AlertCircle size={18} />
-            Issues
-          </NavLink>
+        {/* EMPLOYEE */}
+        {isEmployee && (
+          <>
+            <NavLink to="/issues" className={linkClass}>
+              <AlertCircle size={18} />
+              My Issues
+            </NavLink>
+          </>
         )}
 
       </nav>
