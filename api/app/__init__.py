@@ -20,7 +20,17 @@ def create_app(config_class=Config):
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
-    CORS(app)
+    CORS(app, resources={r"/*": {
+        "origins": [
+            "https://asset-management-system-ibpx.vercel.app",
+            "http://localhost:5173",
+            "http://localhost:3000"
+        ],
+        "allow_headers": ["Content-Type", "Authorization"],
+        "methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        "supports_credentials": True
+    }})
+
 
     from app.modules.auth.models import User
     from app.modules.assignments.models import Assignment
