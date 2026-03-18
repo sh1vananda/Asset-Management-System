@@ -36,14 +36,17 @@ def create_assignment():
 
 @assignment_bp.route("/return/<int:assignment_id>", methods=["POST"])
 def return_assignment_route(assignment_id):
+    from .models import Assignment
 
-    assignment = return_asset(assignment_id)
+    assignment = Assignment.query.get(assignment_id)
 
     if not assignment:
         return jsonify({"error": "Assignment not found"}), 404
-    
+
     if assignment.status == "returned":
-        raise ValueError("Asset already returned")
+        return jsonify({"error": "Asset already returned"}), 400
+
+    return_asset(assignment_id)
 
     return jsonify({"message": "Asset returned"})
 
