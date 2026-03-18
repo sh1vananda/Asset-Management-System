@@ -41,6 +41,10 @@ def create_app(config_class=Config):
     from .modules.assets.routes import assets_bp
     from .modules.dashboard.routes import dashboard_bp
     
+    @app.route('/health')
+    def health():
+        return {"status": "ok"}, 200
+
     app.register_blueprint(auth_bp)
     app.register_blueprint(assets_bp)
     app.register_blueprint(dashboard_bp)
