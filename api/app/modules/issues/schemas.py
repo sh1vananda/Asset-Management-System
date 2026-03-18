@@ -6,4 +6,4 @@ class IssueCreateSchema(Schema):
     reported_by = fields.Int(required=True)
 
 class IssueStatusUpdateSchema(Schema):
-    status = fields.Str(required=True, validate=validate.OneOf(['open', 'In Progress', 'Resolved', 'Closed']))
+    status = fields.Str(required=True, validate=validate.OneOf(['open', 'in_progress', 'resolved', 'closed']))
