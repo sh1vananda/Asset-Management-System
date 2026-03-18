@@ -26,25 +26,22 @@ def create_app(config_class=Config):
     from app.modules.assignments.models import Assignment
     from app.modules.assets.models import Asset
     from app.modules.issues.models import Issue
-    from app.modules.issues.models import Issue
 
     from app.modules.assets.events import register_listeners
     register_listeners()
 
     from app.modules.issues.routes import issue_bp
-    app.register_blueprint(issue_bp)
-
     from app.modules.assignments.routes import assignment_bp
-    app.register_blueprint(assignment_bp)
-
     from .modules.auth.routes import auth_bp
     from .modules.assets.routes import assets_bp
     from .modules.dashboard.routes import dashboard_bp
-    
+
     @app.route('/health')
     def health():
         return {"status": "ok"}, 200
 
+    app.register_blueprint(issue_bp)
+    app.register_blueprint(assignment_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(assets_bp)
     app.register_blueprint(dashboard_bp)
