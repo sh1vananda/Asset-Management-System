@@ -1,7 +1,4 @@
-[build]
-builder = "NIXPACKS"
-
 [deploy]
-startCommand = "export FLASK_APP=run.py && flask db upgrade && gunicorn run:app --bind 0.0.0.0:$PORT"
+startCommand = "flask db upgrade && gunicorn run:app --bind 0.0.0.0:$PORT"
 healthcheckPath = "/health"
 restartPolicyCondition = "ON_FAILURE"
