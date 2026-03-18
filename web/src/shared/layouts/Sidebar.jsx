@@ -6,11 +6,12 @@ import {
   ClipboardList,
   AlertCircle
 } from "lucide-react";
+import { normalizeRole } from "../../core/constants";
 
 export default function Sidebar() {
   const { user } = useApp();
 
-  const role = user?.role?.toLowerCase();
+  const role = normalizeRole(user?.role);
 
   const isAdmin = role === "admin";
   const isITManager = role === "it_manager";
@@ -30,8 +31,31 @@ export default function Sidebar() {
 
       <nav className="p-2 flex-grow-1">
 
-        {/* ADMIN + IT MANAGER */}
-        {(isAdmin || isITManager) && (
+        {isAdmin && (
+          <>
+            <NavLink to="/dashboard" className={linkClass}>
+              <LayoutDashboard size={18} />
+              Dashboard
+            </NavLink>
+
+            <NavLink to="/assets" className={linkClass}>
+              <Package size={18} />
+              Assets
+            </NavLink>
+
+            <NavLink to="/assignments" className={linkClass}>
+              <ClipboardList size={18} />
+              Assignments
+            </NavLink>
+
+            <NavLink to="/issues" className={linkClass}>
+              <AlertCircle size={18} />
+              Issues
+            </NavLink>
+          </>
+        )}
+
+        {isITManager && (
           <>
             <NavLink to="/dashboard" className={linkClass}>
               <LayoutDashboard size={18} />
@@ -58,6 +82,16 @@ export default function Sidebar() {
         {/* EMPLOYEE */}
         {isEmployee && (
           <>
+            <NavLink to="/dashboard" className={linkClass}>
+              <LayoutDashboard size={18} />
+              Dashboard
+            </NavLink>
+
+            <NavLink to="/assets" className={linkClass}>
+              <Package size={18} />
+              My Assets
+            </NavLink>
+
             <NavLink to="/issues" className={linkClass}>
               <AlertCircle size={18} />
               My Issues

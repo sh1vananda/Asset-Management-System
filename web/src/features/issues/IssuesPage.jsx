@@ -1,57 +1,121 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useApp } from "../../core/useApp";
-import { useAssets } from "../assets/useAssets"; // ✅ IMPORTANT
+import { useAssets } from "../assets/useAssets";
+import { useIssues } from "./useIssues";
 import DataTable from "../../shared/components/DataTable";
 import ErrorBoundary from "../../shared/components/ErrorBoundary";
+import { normalizeRole, ROLES } from "../../core/constants";
+
+const STATUS_FLOW = ["open", "in_progress", "resolved", "closed"];
+
+const STATUS_COLORS = {
+  open: "bg-danger",
+  in_progress: "bg-warning text-dark",
+  resolved: "bg-success",
+  closed: "bg-secondary",
+};
 
 export default function IssuesPage() {
-  useAssets(); // 🔥 LOAD ASSETS HERE
+  const { assets = [] } = useAssets();
+  const { issues = [], reportIssue, updateIssueStatus, editIssueLocal, deleteIssueLocal, error } = useIssues();
+  const { hasPermission, PERMISSIONS, user } = useApp();
 
-  const {
-    issues = [],
-    assets = [],
-    users = [],
-    setIssues,
-    hasPermission,
-    PERMISSIONS,
-  } = useApp();
+  const role = normalizeRole(user?.role);
+  const isAdmin = role === ROLES.ADMIN;
+  const canUpdateStatus = hasPermission(PERMISSIONS.UPDATE_ISSUE_STATUS);
+  const canReport = !isAdmin && hasPermission(PERMISSIONS.REPORT_ISSUE);
 
   const [showReportForm, setShowReportForm] = useState(false);
+  const [editingIssue, setEditingIssue] = useState(null);
+  const [message, setMessage] = useState("");
 
-  if (!hasPermission(PERMISSIONS.REPORT_ISSUE)) {
-    return <div className="alert alert-warning">No permission</div>;
+  const issueData = useMemo(
+    () =>
+      issues.map((issue) => {
+        const asset = assets.find((a) => a.id === issue.asset_id);
+        const status = normalizeStatus(issue.status);
+
+        return {
+          ...issue,
+          assetName: asset?.name || `Asset ${issue.asset_id}`,
+          assetCategory: asset?.category || "",
+          title: issue.title || issue.description,
+          status,
+        };
+      }),
+    [issues, assets]
+  );
+
+  const reportTargetAsset = useMemo(() => {
+    if (assets.length > 0) {
+      const first = assets[0];
+      return {
+        id: Number(first.id),
+        name: first.name || `Asset ${first.id}`,
+      };
+    }
+
+    if (issueData.length > 0) {
+      const firstIssue = issueData[0];
+      return {
+        id: Number(firstIssue.asset_id),
+        name: firstIssue.assetName || `Asset ${firstIssue.asset_id}`,
+      };
+    }
+
+    return null;
+  }, [assets, issueData]);
+
+  // Admin and IT Manager can see all issues; employee sees only their own (backend returns all anyway)
+  if (!hasPermission(PERMISSIONS.VIEW_ALL_ASSETS) && !hasPermission(PERMISSIONS.REPORT_ISSUE)) {
+    return <div className="alert alert-warning">No permission to view issues.</div>;
   }
 
-  const issueData = issues.map((issue) => {
-    const asset = assets.find((a) => a.id == issue.assetId);
-    const user = users.find((u) => u.id === issue.reportedBy);
+  const handleReportIssue = async (title, description) => {
+    const assetId = reportTargetAsset?.id;
+    if (!assetId) {
+      setMessage("No asset available to report issue against.");
+      return;
+    }
 
-    return {
-      ...issue,
-      assetName: asset?.name || "Unknown",
-      assetCategory: asset?.category || "",
-      reportedByName: user?.name || "User",
-    };
-  });
+    const result = await reportIssue({ assetId, title, description });
+    setMessage(result.success ? "Issue reported successfully." : result.message);
 
-  const addIssue = (assetId, title, desc, priority) => {
-    const newIssue = {
-      id: Date.now(),
-      assetId,
-      title,
-      description: desc,
-      priority,
-      status: "open",
-      reportedBy: 1, // temp user
-    };
-
-    setIssues((prev) => [...prev, newIssue]);
+    if (result.success) {
+      setShowReportForm(false);
+    }
   };
 
-  const updateIssueStatus = (id, status) => {
-    setIssues((prev) =>
-      prev.map((i) => (i.id === id ? { ...i, status } : i))
-    );
+  const handleUpdateStatus = async (id, status) => {
+    const result = await updateIssueStatus(id, status);
+
+    if (!result.success) {
+      setMessage(result.message);
+      return;
+    }
+
+    setMessage("");
+  };
+
+  const handleEditIssue = async (id, title, description) => {
+    const result = editIssueLocal(id, { title, description });
+    if (!result.success) {
+      setMessage(result.message || "Failed to edit issue");
+      return;
+    }
+
+    setMessage("Issue updated successfully.");
+    setEditingIssue(null);
+  };
+
+  const handleDeleteIssue = async (id) => {
+    const result = deleteIssueLocal(id);
+    if (!result.success) {
+      setMessage(result.message || "Failed to delete issue");
+      return;
+    }
+
+    setMessage("Issue deleted from your view.");
   };
 
   const columns = [
@@ -59,11 +123,11 @@ export default function IssuesPage() {
     {
       key: "title",
       header: "Issue Title",
-      render: (v, i) => (
+      render: (v, issue) => (
         <div>
           <b>{v}</b>
           <div className="text-muted small">
-            {i.assetName} - {i.assetCategory}
+            {issue.assetName} - {issue.assetCategory}
           </div>
         </div>
       ),
@@ -71,31 +135,63 @@ export default function IssuesPage() {
     {
       key: "status",
       header: "Status",
-      render: (v) => <span className="badge bg-danger">{v}</span>,
+      render: (v) => (
+        <span className={`badge ${STATUS_COLORS[v] || "bg-secondary"}`}>
+          {statusLabel(v)}
+        </span>
+      ),
     },
-    {
-      key: "priority",
-      header: "Priority",
-      render: (v) => <span className="badge bg-warning">{v}</span>,
-    },
-    { key: "reportedByName", header: "Reported By" },
     {
       key: "actions",
       header: "Actions",
-      render: (_, issue) => (
-        <select
-          className="form-select form-select-sm"
-          value={issue.status}
-          onChange={(e) =>
-            updateIssueStatus(issue.id, e.target.value)
-          }
-        >
-          <option>open</option>
-          <option>In Progress</option>
-          <option>Resolved</option>
-          <option>Closed</option>
-        </select>
-      ),
+      render: (_, issue) => {
+        if (!canUpdateStatus && canReport) {
+          return (
+            <div className="d-flex gap-2">
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-primary"
+                onClick={() => setEditingIssue(issue)}
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-danger"
+                onClick={() => handleDeleteIssue(issue.id)}
+              >
+                Delete
+              </button>
+            </div>
+          );
+        }
+
+        if (!canUpdateStatus) return <span className="text-muted small">No actions</span>;
+        const nextStatuses = getNextStatuses(issue.status);
+        if (nextStatuses.length === 0) {
+          return (
+            <span className="text-muted small">
+              {issue.status === "resolved" ? "Resolved — no further changes" : "Closed"}
+            </span>
+          );
+        }
+        return (
+          <select
+            className="form-select form-select-sm"
+            value=""
+            onChange={(e) => handleUpdateStatus(issue.id, e.target.value)}
+          >
+            <option value="" disabled>
+              Set status...
+            </option>
+            {nextStatuses.map((status) => (
+              <option key={status} value={status}>
+                {statusLabel(status)}
+              </option>
+            ))}
+          </select>
+        );
+      },
     },
   ];
 
@@ -104,30 +200,36 @@ export default function IssuesPage() {
       <div>
         <div className="d-flex justify-content-between mb-3">
           <h3>Issue Management</h3>
-
-          <button
-            className="btn btn-primary"
-            onClick={() => setShowReportForm(true)}
-          >
-            Report Issue
-          </button>
+          {canReport && (
+            <button className="btn btn-primary" onClick={() => setShowReportForm(true)}>
+              Report Issue
+            </button>
+          )}
         </div>
 
-        <KanbanBoard
-          issues={issueData}
-          onUpdateStatus={updateIssueStatus}
-        />
+        {(message || error) && (
+          <div className={`alert py-2 ${error ? "alert-danger" : "alert-info"}`}>
+            {message || error}
+          </div>
+        )}
+
+        <KanbanBoard issues={issueData} onUpdateStatus={handleUpdateStatus} canUpdateStatus={canUpdateStatus} />
 
         <DataTable data={issueData} columns={columns} searchable paginated />
 
         {showReportForm && (
           <IssueForm
-            assets={assets}
-            onSave={(assetId, title, desc, priority) => {
-              addIssue(assetId, title, desc, priority);
-              setShowReportForm(false);
-            }}
+            targetAsset={reportTargetAsset}
+            onSave={(title, desc) => handleReportIssue(title, desc)}
             onCancel={() => setShowReportForm(false)}
+          />
+        )}
+
+        {editingIssue && (
+          <EditIssueForm
+            issue={editingIssue}
+            onSave={(title, description) => handleEditIssue(editingIssue.id, title, description)}
+            onCancel={() => setEditingIssue(null)}
           />
         )}
       </div>
@@ -135,46 +237,68 @@ export default function IssuesPage() {
   );
 }
 
-/* ================= KANBAN ================= */
+function normalizeStatus(status) {
+  if (!status) return "open";
 
-function KanbanBoard({ issues, onUpdateStatus }) {
-  const statuses = ["open", "In Progress", "Resolved", "Closed"];
+  const normalized = status.toString().trim().toLowerCase().replace(/\s+/g, "_");
+  return STATUS_FLOW.includes(normalized) ? normalized : "open";
+}
 
+function statusLabel(status) {
+  if (status === "in_progress") return "In Progress";
+  return status.charAt(0).toUpperCase() + status.slice(1);
+}
+
+function getNextStatuses(current) {
+  if (current === "open") return ["in_progress", "resolved", "closed"];
+  if (current === "in_progress") return ["resolved", "closed"];
+  return [];
+}
+
+function KanbanBoard({ issues, onUpdateStatus, canUpdateStatus }) {
   return (
     <div className="row mb-4">
-      {statuses.map((status) => {
-        const filtered = issues.filter((i) => i.status === status);
+      {STATUS_FLOW.map((status) => {
+        const filtered = issues.filter((issue) => issue.status === status);
 
         return (
           <div key={status} className="col-md-3">
             <div className="card p-3 h-100">
-              <h6>{status} ({filtered.length})</h6>
+              <h6 className={`mb-2 badge ${STATUS_COLORS[status] || "bg-secondary"} d-inline-block`}>
+                {statusLabel(status)} ({filtered.length})
+              </h6>
 
               {filtered.map((issue) => (
-                <div key={issue.id} className="card p-2 mb-2">
-                  <b>{issue.title}</b>
-                  <small>{issue.description}</small>
+                <div key={issue.id} className="card p-2 mb-2 border">
+                  <b className="small">{issue.title}</b>
+                  <small className="text-muted">{issue.assetName}</small>
 
-                  <select
-                    className="form-select form-select-sm mt-2"
-                    value={issue.status}
-                    onChange={(e) =>
-                      onUpdateStatus(issue.id, e.target.value)
-                    }
-                  >
-                    <option>open</option>
-                    <option>In Progress</option>
-                    <option>Resolved</option>
-                    <option>Closed</option>
-                  </select>
+                  {canUpdateStatus && getNextStatuses(issue.status).length > 0 && (
+                    <select
+                      className="form-select form-select-sm mt-2"
+                      value=""
+                      onChange={(e) => onUpdateStatus(issue.id, e.target.value)}
+                    >
+                      <option value="" disabled>
+                        Set status...
+                      </option>
+                      {getNextStatuses(issue.status).map((status) => (
+                        <option key={status} value={status}>
+                          {statusLabel(status)}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  {issue.status === "resolved" && (
+                    <span className="badge bg-success mt-1">Resolved</span>
+                  )}
+                  {issue.status === "closed" && (
+                    <span className="badge bg-secondary mt-1">Closed</span>
+                  )}
                 </div>
               ))}
 
-              {filtered.length === 0 && (
-                <div className="text-muted small text-center">
-                  No issues
-                </div>
-              )}
+              {filtered.length === 0 && <div className="text-muted small text-center mt-2">No issues</div>}
             </div>
           </div>
         );
@@ -183,32 +307,40 @@ function KanbanBoard({ issues, onUpdateStatus }) {
   );
 }
 
-/* ================= MODAL ================= */
-
-function IssueForm({ onSave, onCancel, assets }) {
+function IssueForm({ onSave, onCancel, targetAsset }) {
   const [form, setForm] = useState({
-    assetId: "",
     title: "",
     description: "",
-    priority: "Medium",
   });
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    if (!form.assetId || !form.title) {
-      alert("Please fill all fields");
+    const nextErrors = {};
+    if (!targetAsset?.id) {
+      nextErrors.asset = "No asset available for reporting.";
+    }
+
+    const finalDescription = (form.description || form.title).trim();
+    if (finalDescription.length < 5) {
+      nextErrors.description = "Description must be at least 5 characters.";
+    }
+
+    setFieldErrors(nextErrors);
+
+    if (Object.keys(nextErrors).length > 0) {
       return;
     }
 
-    onSave(form.assetId, form.title, form.description, form.priority);
+    const finalTitle = form.title.trim() || finalDescription.slice(0, 60);
+    onSave(finalTitle, finalDescription);
   };
 
   return (
     <div className="modal show d-block" style={{ background: "rgba(0,0,0,0.5)" }}>
       <div className="modal-dialog">
         <div className="modal-content">
-
           <div className="modal-header">
             <h5>Report Issue</h5>
             <button className="btn-close" onClick={onCancel}></button>
@@ -216,63 +348,109 @@ function IssueForm({ onSave, onCancel, assets }) {
 
           <form onSubmit={handleSubmit}>
             <div className="modal-body">
+              {targetAsset ? (
+                <div className="alert alert-secondary py-2 mb-2">
+                  Reporting against: <b>{targetAsset.name}</b> (#{targetAsset.id})
+                </div>
+              ) : (
+                <div className="alert alert-warning py-2 mb-2">
+                  No asset found for reporting. Please contact admin.
+                </div>
+              )}
+              {fieldErrors.asset && <div className="text-danger small mb-2">{fieldErrors.asset}</div>}
 
-              <select
-                className="form-select mb-2"
-                value={form.assetId}
-                onChange={(e) =>
-                  setForm({ ...form, assetId: e.target.value })
-                }
-              >
-                <option value="">Select an asset...</option>
-                {assets.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name}
-                  </option>
-                ))}
-              </select>
+              <input
+                className={`form-control mb-2 ${fieldErrors.title ? "is-invalid" : ""}`}
+                placeholder="Issue Title (optional)"
+                onChange={(e) => {
+                  setForm({ ...form, title: e.target.value });
+                  setFieldErrors((prev) => ({ ...prev, title: "" }));
+                }}
+              />
 
+              <textarea
+                className={`form-control mb-2 ${fieldErrors.description ? "is-invalid" : ""}`}
+                placeholder="Describe the issue (write your issue here)"
+                onChange={(e) => {
+                  setForm({ ...form, description: e.target.value });
+                  setFieldErrors((prev) => ({ ...prev, description: "" }));
+                }}
+              />
+              {fieldErrors.description && <div className="invalid-feedback d-block">{fieldErrors.description}</div>}
+            </div>
+
+            <div className="modal-footer">
+              <button type="button" className="btn btn-secondary" onClick={onCancel}>
+                Cancel
+              </button>
+              <button className="btn btn-primary" disabled={!targetAsset?.id}>Report Issue</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EditIssueForm({ issue, onSave, onCancel }) {
+  const [title, setTitle] = useState(issue?.title || "");
+  const [description, setDescription] = useState(issue?.description || "");
+  const [error, setError] = useState("");
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const finalTitle = (title || "").trim();
+    const finalDescription = (description || "").trim();
+
+    if (!finalTitle && !finalDescription) {
+      setError("Enter a title or description.");
+      return;
+    }
+
+    onSave(finalTitle || issue?.title || `Issue #${issue?.id}`, finalDescription || issue?.description || "");
+  };
+
+  return (
+    <div className="modal show d-block" style={{ background: "rgba(0,0,0,0.5)" }}>
+      <div className="modal-dialog">
+        <div className="modal-content">
+          <div className="modal-header">
+            <h5>Edit Issue</h5>
+            <button className="btn-close" onClick={onCancel}></button>
+          </div>
+
+          <form onSubmit={handleSubmit}>
+            <div className="modal-body">
               <input
                 className="form-control mb-2"
                 placeholder="Issue Title"
-                onChange={(e) =>
-                  setForm({ ...form, title: e.target.value })
-                }
+                value={title}
+                onChange={(e) => {
+                  setTitle(e.target.value);
+                  setError("");
+                }}
               />
 
               <textarea
                 className="form-control mb-2"
-                placeholder="Description"
-                onChange={(e) =>
-                  setForm({ ...form, description: e.target.value })
-                }
+                placeholder="Issue Description"
+                value={description}
+                onChange={(e) => {
+                  setDescription(e.target.value);
+                  setError("");
+                }}
               />
 
-              <select
-                className="form-select"
-                onChange={(e) =>
-                  setForm({ ...form, priority: e.target.value })
-                }
-              >
-                <option>Low</option>
-                <option>Medium</option>
-                <option>High</option>
-                <option>Critical</option>
-              </select>
-
+              {error && <div className="text-danger small">{error}</div>}
             </div>
 
             <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={onCancel}>
+              <button type="button" className="btn btn-secondary" onClick={onCancel}>
                 Cancel
               </button>
-              <button className="btn btn-primary">
-                Report Issue
-              </button>
+              <button className="btn btn-primary">Save Changes</button>
             </div>
-
           </form>
-
         </div>
       </div>
     </div>

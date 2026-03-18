@@ -8,7 +8,7 @@ export default function AssetChart() {
     const total = assets.length;
     const assigned = assets.filter(a => a.status === "Assigned").length;
     const available = assets.filter(a => a.status === "Available").length;
-    const maintenance = assets.filter(a => a.status === "Maintenance").length;
+    const maintenance = assets.filter(a => a.status === "Under Maintenance").length;
 
     return { total, assigned, available, maintenance };
   }, [assets]);

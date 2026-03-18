@@ -1,4 +1,4 @@
-import { createBrowserRouter } from "react-router-dom";
+import { createBrowserRouter, Navigate } from "react-router-dom";
 
 import LoginPage from "../features/auth/LoginPage";
 import RegisterPage from "../features/auth/RegisterPage";
@@ -9,6 +9,7 @@ import IssuesPage from "../features/issues/IssuesPage";
 
 import AppLayout from "../shared/layouts/AppLayout";
 import RequireAuth from "./RequireAuth";
+import { ROLES } from "./constants";
 
 const router = createBrowserRouter([
   {
@@ -28,21 +29,41 @@ const router = createBrowserRouter([
     children: [
       {
         path: "/dashboard",
-        element: <DashboardPage />,
+        element: (
+          <RequireAuth allowedRoles={[ROLES.ADMIN, ROLES.IT_MANAGER, ROLES.EMPLOYEE]}>
+            <DashboardPage />
+          </RequireAuth>
+        ),
       },
       {
         path: "/assets",
-        element: <AssetsPage />,
+        element: (
+          <RequireAuth allowedRoles={[ROLES.ADMIN, ROLES.IT_MANAGER, ROLES.EMPLOYEE]}>
+            <AssetsPage />
+          </RequireAuth>
+        ),
       },
       {
         path: "/assignments",
-        element: <AssignmentsPage />,
+        element: (
+          <RequireAuth allowedRoles={[ROLES.ADMIN, ROLES.IT_MANAGER]}>
+            <AssignmentsPage />
+          </RequireAuth>
+        ),
       },
       {
         path: "/issues",
-        element: <IssuesPage />,
+        element: (
+          <RequireAuth allowedRoles={[ROLES.ADMIN, ROLES.IT_MANAGER, ROLES.EMPLOYEE]}>
+            <IssuesPage />
+          </RequireAuth>
+        ),
       },
     ],
+  },
+  {
+    path: "*",
+    element: <Navigate to="/assets" replace />,
   },
 ]);
 

@@ -8,6 +8,20 @@ export const ROLES = {
   EMPLOYEE: "employee",
 };
 
+export const STORAGE_KEYS = {
+  ACCESS_TOKEN: "access_token",
+  USER: "auth_user",
+  ASSIGNMENTS_VIEW_USER: "assignments_view_user_id",
+  ASSIGNMENTS_ACTIVE_MAP: "assignments_active_asset_map",
+  ASSIGNMENTS_HISTORY: "assignments_history",
+  ASSIGNMENTS_HISTORY_HIDDEN: "assignments_history_hidden",
+};
+
+export const normalizeRole = (role) => {
+  if (!role) return "";
+  return role.toString().trim().toLowerCase().replace(/\s+/g, "_");
+};
+
 // ==========================================
 // PERMISSIONS LIST
 // ==========================================
@@ -42,7 +56,7 @@ export const PERMISSIONS = {
 // ==========================================
 
 export const ROLE_PERMISSIONS = {
-  // 🔥 ADMIN → FULL ACCESS
+  //  ADMIN → FULL ACCESS
   [ROLES.ADMIN]: Object.values(PERMISSIONS),
 
   // 🔧 IT MANAGER → LIMITED ADMIN
@@ -55,7 +69,6 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.REPORT_ISSUE,
     PERMISSIONS.UPDATE_ISSUE_STATUS,
     PERMISSIONS.CLOSE_ISSUE,
-    PERMISSIONS.VIEW_DASHBOARD,
   ],
 
   // 👤 EMPLOYEE → LIMITED ACCESS

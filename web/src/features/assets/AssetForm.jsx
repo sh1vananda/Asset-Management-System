@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 
 const defaultFormState = {
   name: "",
@@ -12,31 +12,60 @@ const defaultFormState = {
 };
 
 export default function AssetForm({ initialData = null, onSave, onCancel }) {
-  const [form, setForm] = useState(defaultFormState);
+  const initialFormState = useMemo(() => {
+    if (!initialData) {
+      return defaultFormState;
+    }
+
+    return {
+      ...defaultFormState,
+      ...initialData,
+      serial_number: initialData.serial_number || "",
+    };
+  }, [initialData]);
+
+  const [form, setForm] = useState(initialFormState);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
 
   useEffect(() => {
-    if (initialData) {
-      setForm({
-        ...initialData,
-        serial_number: initialData.serial_number || "",
-      });
-    } else {
-      setForm(defaultFormState);
-    }
-  }, [initialData]);
+    Promise.resolve().then(() => {
+      setForm(initialFormState);
+    });
+  }, [initialFormState]);
 
   const handleChange = (key) => (e) => {
     setForm((prev) => ({ ...prev, [key]: e.target.value }));
+    setFieldErrors((prev) => ({ ...prev, [key]: "" }));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    if (!form.name || !form.category || !form.serial_number) {
-      setError("Name, Category & Serial Number required");
+    const nextErrors = {};
+    if (!form.name.trim()) nextErrors.name = "Asset name is required.";
+    if (!form.category.trim()) nextErrors.category = "Category is required.";
+    if (!form.brand.trim()) nextErrors.brand = "Brand is required.";
+    if (!form.model.trim()) nextErrors.model = "Model is required.";
+
+    if (!form.serial_number.trim()) {
+      nextErrors.serial_number = "Serial number is required.";
+    } else if (!/^[A-Za-z0-9\-_.]+$/.test(form.serial_number.trim())) {
+      nextErrors.serial_number = "Use only letters, numbers, dash, underscore, or dot.";
+    }
+
+    if (!form.purchase_date) {
+      nextErrors.purchase_date = "Purchase date is required.";
+    }
+
+    setFieldErrors(nextErrors);
+
+    if (Object.keys(nextErrors).length > 0) {
+      setError("Please fix the highlighted fields.");
       return;
     }
+
+    setError("");
 
     onSave(form);
   };
@@ -51,34 +80,40 @@ export default function AssetForm({ initialData = null, onSave, onCancel }) {
         <div className="row">
 
           <div className="col-md-6 mb-2">
-            <input className="form-control" placeholder="Name"
+            <input className={`form-control ${fieldErrors.name ? "is-invalid" : ""}`} placeholder="Name"
               value={form.name} onChange={handleChange("name")} />
+            {fieldErrors.name && <div className="invalid-feedback">{fieldErrors.name}</div>}
           </div>
 
           <div className="col-md-6 mb-2">
-            <input className="form-control" placeholder="Category"
+            <input className={`form-control ${fieldErrors.category ? "is-invalid" : ""}`} placeholder="Category"
               value={form.category} onChange={handleChange("category")} />
+            {fieldErrors.category && <div className="invalid-feedback">{fieldErrors.category}</div>}
           </div>
 
           <div className="col-md-6 mb-2">
-            <input className="form-control" placeholder="Brand"
+            <input className={`form-control ${fieldErrors.brand ? "is-invalid" : ""}`} placeholder="Brand"
               value={form.brand} onChange={handleChange("brand")} />
+            {fieldErrors.brand && <div className="invalid-feedback">{fieldErrors.brand}</div>}
           </div>
 
           <div className="col-md-6 mb-2">
-            <input className="form-control" placeholder="Model"
+            <input className={`form-control ${fieldErrors.model ? "is-invalid" : ""}`} placeholder="Model"
               value={form.model} onChange={handleChange("model")} />
+            {fieldErrors.model && <div className="invalid-feedback">{fieldErrors.model}</div>}
           </div>
 
           <div className="col-md-6 mb-2">
-            <input className="form-control" placeholder="Serial Number"
+            <input className={`form-control ${fieldErrors.serial_number ? "is-invalid" : ""}`} placeholder="Serial Number"
               value={form.serial_number} onChange={handleChange("serial_number")} />
+            {fieldErrors.serial_number && <div className="invalid-feedback">{fieldErrors.serial_number}</div>}
           </div>
 
           <div className="col-md-6 mb-2">
-            <input type="date" className="form-control"
+            <input type="date" className={`form-control ${fieldErrors.purchase_date ? "is-invalid" : ""}`}
               value={form.purchase_date}
               onChange={handleChange("purchase_date")} />
+            {fieldErrors.purchase_date && <div className="invalid-feedback">{fieldErrors.purchase_date}</div>}
           </div>
 
           <div className="col-md-6 mb-2">
@@ -94,7 +129,14 @@ export default function AssetForm({ initialData = null, onSave, onCancel }) {
 
         </div>
 
-        <button className="btn btn-success mt-2">Save</button>
+        <div className="d-flex gap-2 mt-2">
+          <button className="btn btn-success">Save</button>
+          {initialData && (
+            <button type="button" className="btn btn-outline-secondary" onClick={onCancel}>
+              Cancel
+            </button>
+          )}
+        </div>
       </form>
     </div>
   );

@@ -1,9 +1,9 @@
-﻿import { useMemo, useState, useCallback } from "react";
+﻿import { useMemo, useState } from "react";
 import { useApp } from "../../core/useApp";
 import DataTable from "../../shared/components/DataTable";
 
 export default function AssetTable({ assets, onEdit, onDelete }) {
-  const { user, hasPermission, PERMISSIONS } = useApp();
+  const { hasPermission, PERMISSIONS } = useApp();
 
   const [filters, setFilters] = useState({
     status: "",
@@ -11,20 +11,12 @@ export default function AssetTable({ assets, onEdit, onDelete }) {
   });
 
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [searchTimeout, setSearchTimeout] = useState(null);
 
-  const handleSearchChange = useCallback((value) => {
-    if (searchTimeout) clearTimeout(searchTimeout);
-    const timeout = setTimeout(() => setDebouncedSearch(value), 300);
-    setSearchTimeout(timeout);
-  }, [searchTimeout]);
+  const canEdit = hasPermission(PERMISSIONS.EDIT_ASSET);
+  const canDelete = hasPermission(PERMISSIONS.DELETE_ASSET);
 
   const filteredAssets = useMemo(() => {
     let filtered = [...assets];
-
-    if (!hasPermission(PERMISSIONS.VIEW_ALL_ASSETS)) {
-      filtered = filtered.filter(a => a.assignedTo === user?.id);
-    }
 
     if (filters.status) {
       filtered = filtered.filter(a => a.status === filters.status);
@@ -44,7 +36,7 @@ export default function AssetTable({ assets, onEdit, onDelete }) {
     }
 
     return filtered;
-  }, [assets, filters, debouncedSearch, user]);
+  }, [assets, filters, debouncedSearch]);
 
   const filterOptions = useMemo(() => {
     return {
@@ -71,25 +63,32 @@ export default function AssetTable({ assets, onEdit, onDelete }) {
       render: (v) => <span className="badge bg-success">{v}</span>,
     },
     {
-      key: "assignedTo",
+      key: "assigned_to",
       header: "Assigned To",
       render: (v) => v ? `User ${v}` : "Unassigned",
     },
-    { key: "location", header: "Location" },
     {
-      key: "purchaseDate",
+      key: "purchase_date",
       header: "Purchase Date",
-      render: (v) => new Date(v).toLocaleDateString(),
+      render: (v) => (v ? new Date(v).toLocaleDateString() : "-"),
     },
     {
       key: "actions",
       header: "Actions",
-      render: (_, asset) => (
-        <>
-          <button onClick={() => onEdit(asset)} className="btn btn-sm btn-primary me-1">Edit</button>
-          <button onClick={() => onDelete(asset.id)} className="btn btn-sm btn-danger">Delete</button>
-        </>
-      ),
+      render: (_, asset) => {
+        if (!canEdit && !canDelete) return "-";
+
+        return (
+          <>
+            {canEdit && (
+              <button onClick={() => onEdit(asset)} className="btn btn-sm btn-primary me-1">Edit</button>
+            )}
+            {canDelete && (
+              <button onClick={() => onDelete(asset.id)} className="btn btn-sm btn-danger">Delete</button>
+            )}
+          </>
+        );
+      },
     },
   ];
 
@@ -120,7 +119,7 @@ export default function AssetTable({ assets, onEdit, onDelete }) {
         columns={columns}
         searchable
         paginated
-        onSearchChange={handleSearchChange}
+        onSearchChange={setDebouncedSearch}
       />
     </div>
   );

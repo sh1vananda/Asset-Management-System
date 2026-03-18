@@ -1,28 +1,11 @@
 import { useState } from "react";
 import api from "../../core/api";
 import { useApp } from "../../core/useApp";
+import { normalizeRole, STORAGE_KEYS } from "../../core/constants";
 
 export const useAuth = () => {
   const { setUser, logout: contextLogout } = useApp();
   const [loading, setLoading] = useState(false);
-
-  // 🔥 ROLE → PERMISSIONS MAPPING
-  const getPermissionsFromRole = (role) => {
-    if (role === "admin" || role === "it_manager") {
-      return [
-        "VIEW_DASHBOARD",
-        "VIEW_ALL_ASSETS",
-        "ASSIGN_ASSET",
-        "REPORT_ISSUE",
-        "UPDATE_ISSUE_STATUS",
-      ];
-    }
-
-    // employee
-    return [
-      "REPORT_ISSUE",
-    ];
-  };
 
   // ✅ LOGIN
   const login = async (username, password) => {
@@ -35,16 +18,15 @@ export const useAuth = () => {
 
       const { access_token, user } = res.data;
 
-      const permissions = getPermissionsFromRole(user.role);
-
-      localStorage.setItem("access_token", access_token);
+      localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, access_token);
 
       setUser({
         ...user,
-        permissions, // 🔥 attach permissions
+        role: normalizeRole(user.role),
+        name: user.username,
       });
 
-      return { success: true };
+      return { success: true, role: normalizeRole(user.role) };
     } catch (err) {
       console.error(err.response?.data);
       return {
@@ -56,15 +38,14 @@ export const useAuth = () => {
     }
   };
 
-  // ✅ REGISTER (keep admin for now)
-  const register = async (username, email, password) => {
+  const register = async (username, email, password, role) => {
     setLoading(true);
     try {
       await api.post("/auth/register", {
         username,
         email,
         password,
-        role: "admin",
+        role: normalizeRole(role || "employee"),
       });
 
       return { success: true };
@@ -80,7 +61,7 @@ export const useAuth = () => {
   };
 
   const logout = () => {
-    localStorage.removeItem("access_token");
+    localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
     contextLogout();
   };
 
