@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import api from "../../core/api";
 import { useApp } from "../../core/useApp";
 import { normalizeRole, ROLES } from "../../core/constants";
+import { extractApiErrorMessage } from "../../core/errors";
 
 export const useAssignments = () => {
   const { user } = useApp();
@@ -31,7 +32,7 @@ export const useAssignments = () => {
     } catch (err) {
       console.error("Assignments fetch error:", err.response?.data || err.message);
       setAssignments([]);
-      setError(err.response?.data?.error || "Failed to load assignments");
+      setError(extractApiErrorMessage(err, "Failed to load assignments"));
     } finally {
       setLoading(false);
     }
@@ -68,7 +69,7 @@ export const useAssignments = () => {
       console.error("Assign error:", err.response?.data || err.message);
       return {
         success: false,
-        message: err.response?.data?.error || "Failed to assign asset",
+        message: extractApiErrorMessage(err, "Failed to assign asset"),
       };
     }
   };
@@ -85,7 +86,7 @@ export const useAssignments = () => {
       console.error("Return error:", err.response?.data || err.message);
       return {
         success: false,
-        message: err.response?.data?.error || "Failed to return asset",
+        message: extractApiErrorMessage(err, "Failed to return asset"),
       };
     }
   };

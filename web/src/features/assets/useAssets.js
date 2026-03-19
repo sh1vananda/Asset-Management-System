@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import api from "../../core/api";
 import { useApp } from "../../core/useApp";
 import { normalizeRole, ROLES } from "../../core/constants";
+import { extractApiErrorMessage } from "../../core/errors";
 
 // ✅ IMPORTANT: named export
 export const useAssets = () => {
@@ -42,7 +43,7 @@ export const useAssets = () => {
     } catch (err) {
       console.error("Assets fetch error:", err);
       setAssets([]);
-      setError(err.response?.data?.error || "Unable to fetch assets");
+      setError(extractApiErrorMessage(err, "Unable to fetch assets"));
     } finally {
       setLoading(false);
     }
@@ -61,7 +62,7 @@ export const useAssets = () => {
       console.error("Add asset error:", err);
       return {
         success: false,
-        message: err.response?.data?.error || "Failed to add asset",
+        message: extractApiErrorMessage(err, "Failed to add asset"),
       };
     }
   };
@@ -75,7 +76,7 @@ export const useAssets = () => {
       console.error("Update asset error:", err);
       return {
         success: false,
-        message: err.response?.data?.error || "Failed to update asset",
+        message: extractApiErrorMessage(err, "Failed to update asset"),
       };
     }
   };
@@ -89,7 +90,7 @@ export const useAssets = () => {
       console.error("Delete asset error:", err);
       return {
         success: false,
-        message: err.response?.data?.error || "Failed to delete asset",
+        message: extractApiErrorMessage(err, "Failed to delete asset"),
       };
     }
   };

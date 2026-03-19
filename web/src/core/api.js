@@ -6,9 +6,12 @@ const configuredBaseUrl =
   "https://asset-management-system-production-fe3c.up.railway.app";
 
 const useDirectApi = import.meta.env.VITE_USE_DIRECT_API === "true";
+const useProxyApi = import.meta.env.VITE_USE_PROXY_API === "true";
+const isDev = import.meta.env.DEV;
 
-// Use same-origin proxy by default to prevent browser CORS issues.
-const resolvedBaseUrl = useDirectApi
+// Production defaults to direct backend API for reliability.
+// Local development keeps same-origin proxy unless overridden.
+const resolvedBaseUrl = useDirectApi || (!isDev && !useProxyApi)
   ? configuredBaseUrl.replace(/\/+$/, "")
   : "/api/proxy";
 

@@ -2,6 +2,7 @@ import { useState } from "react";
 import api from "../../core/api";
 import { useApp } from "../../core/useApp";
 import { normalizeRole, STORAGE_KEYS } from "../../core/constants";
+import { extractApiErrorMessage } from "../../core/errors";
 
 export const useAuth = () => {
   const { setUser, logout: contextLogout } = useApp();
@@ -31,7 +32,7 @@ export const useAuth = () => {
       console.error(err.response?.data);
       return {
         success: false,
-        message: err.response?.data?.error || "Login failed",
+        message: extractApiErrorMessage(err, "Login failed"),
       };
     } finally {
       setLoading(false);
@@ -53,7 +54,7 @@ export const useAuth = () => {
       console.error(err.response?.data);
       return {
         success: false,
-        message: err.response?.data?.error || "Registration failed",
+        message: extractApiErrorMessage(err, "Registration failed"),
       };
     } finally {
       setLoading(false);

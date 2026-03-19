@@ -2,6 +2,14 @@ import { useCallback, useEffect, useState } from "react";
 import api from "../../core/api";
 import { useApp } from "../../core/useApp";
 import { STORAGE_KEYS } from "../../core/constants";
+import { extractApiErrorMessage } from "../../core/errors";
+
+const VALID_STATUSES = new Set(["open", "in_progress", "resolved", "closed"]);
+
+const normalizeIssueStatus = (status) => {
+  const normalized = (status || "open").toString().trim().toLowerCase().replace(/\s+/g, "_");
+  return VALID_STATUSES.has(normalized) ? normalized : "open";
+};
 
 const getIssueMetaKey = (userId) => `${STORAGE_KEYS.USER}_issue_meta_${userId || "anon"}`;
 
@@ -45,7 +53,7 @@ export const useIssues = () => {
     } catch (err) {
       console.error("ISSUES ERROR:", err.response?.data);
       setIssues([]);
-      setError(err.response?.data?.error || "Failed to load issues");
+      setError(extractApiErrorMessage(err, "Failed to load issues"));
     }
   }, [setIssues, user]);
 
@@ -80,21 +88,41 @@ export const useIssues = () => {
       console.error("REPORT ISSUE ERROR:", err.response?.data);
       return {
         success: false,
-        message: err.response?.data?.error || "Failed to report issue",
+        message: extractApiErrorMessage(err, "Failed to report issue"),
       };
     }
   };
 
   const updateIssueStatus = async (id, status) => {
+    const numericId = Number(id);
+    const nextStatus = normalizeIssueStatus(status);
+    let previousStatus = null;
+
+    setIssues((prev) =>
+      prev.map((issue) => {
+        if (Number(issue.id) !== numericId) return issue;
+        previousStatus = normalizeIssueStatus(issue.status);
+        return { ...issue, status: nextStatus };
+      })
+    );
+
     try {
-      await api.patch(`/issues/${id}/status`, { status });
+      await api.patch(`/issues/${id}/status`, { status: nextStatus });
       await fetchIssues();
       return { success: true };
     } catch (err) {
+      if (previousStatus) {
+        setIssues((prev) =>
+          prev.map((issue) =>
+            Number(issue.id) === numericId ? { ...issue, status: previousStatus } : issue
+          )
+        );
+      }
+
       console.error("UPDATE ISSUE ERROR:", err.response?.data);
       return {
         success: false,
-        message: err.response?.data?.error || "Failed to update issue",
+        message: extractApiErrorMessage(err, "Failed to update issue"),
       };
     }
   };

@@ -4,6 +4,7 @@ import { normalizeRole, ROLES } from "../../core/constants";
 import { useAssets } from "../assets/useAssets";
 import { useIssues } from "../issues/useIssues";
 import api from "../../core/api";
+import { extractApiErrorMessage } from "../../core/errors";
 import Loader from "../../shared/components/Loader";
 
 export default function DashboardPage() {
@@ -34,7 +35,7 @@ export default function DashboardPage() {
         const res = await api.get("/dashboard/stats");
         setPlatformStats(res.data || null);
       } catch (err) {
-        setDashboardError(err.response?.data?.error || "Unable to load dashboard stats");
+        setDashboardError(extractApiErrorMessage(err, "Unable to load dashboard stats"));
       } finally {
         setLoadingStats(false);
       }

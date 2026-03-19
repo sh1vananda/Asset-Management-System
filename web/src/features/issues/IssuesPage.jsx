@@ -28,6 +28,7 @@ export default function IssuesPage() {
   const [showReportForm, setShowReportForm] = useState(false);
   const [editingIssue, setEditingIssue] = useState(null);
   const [message, setMessage] = useState("");
+  const [updatingIssueId, setUpdatingIssueId] = useState(null);
 
   const issueData = useMemo(
     () =>
@@ -87,14 +88,22 @@ export default function IssuesPage() {
   };
 
   const handleUpdateStatus = async (id, status) => {
+    if (!status) return;
+
+    if (updatingIssueId === id) return;
+
+    setUpdatingIssueId(id);
+    setMessage(`Updating issue #${id} to ${statusLabel(status)}...`);
+
     const result = await updateIssueStatus(id, status);
+    setUpdatingIssueId(null);
 
     if (!result.success) {
       setMessage(result.message);
       return;
     }
 
-    setMessage("");
+    setMessage(`Issue #${id} updated to ${statusLabel(status)}.`);
   };
 
   const handleEditIssue = async (id, title, description) => {
@@ -167,24 +176,15 @@ export default function IssuesPage() {
         }
 
         if (!canUpdateStatus) return <span className="text-muted small">No actions</span>;
-        const nextStatuses = getNextStatuses(issue.status);
-        if (nextStatuses.length === 0) {
-          return (
-            <span className="text-muted small">
-              {issue.status === "resolved" ? "Resolved — no further changes" : "Closed"}
-            </span>
-          );
-        }
+
         return (
           <select
             className="form-select form-select-sm"
-            value=""
+            value={issue.status}
+            disabled={updatingIssueId === issue.id}
             onChange={(e) => handleUpdateStatus(issue.id, e.target.value)}
           >
-            <option value="" disabled>
-              Set status...
-            </option>
-            {nextStatuses.map((status) => (
+            {STATUS_FLOW.map((status) => (
               <option key={status} value={status}>
                 {statusLabel(status)}
               </option>
@@ -213,7 +213,12 @@ export default function IssuesPage() {
           </div>
         )}
 
-        <KanbanBoard issues={issueData} onUpdateStatus={handleUpdateStatus} canUpdateStatus={canUpdateStatus} />
+        <KanbanBoard
+          issues={issueData}
+          onUpdateStatus={handleUpdateStatus}
+          canUpdateStatus={canUpdateStatus}
+          updatingIssueId={updatingIssueId}
+        />
 
         <DataTable data={issueData} columns={columns} searchable paginated />
 
@@ -249,13 +254,7 @@ function statusLabel(status) {
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
-function getNextStatuses(current) {
-  if (current === "open") return ["in_progress", "resolved", "closed"];
-  if (current === "in_progress") return ["resolved", "closed"];
-  return [];
-}
-
-function KanbanBoard({ issues, onUpdateStatus, canUpdateStatus }) {
+function KanbanBoard({ issues, onUpdateStatus, canUpdateStatus, updatingIssueId }) {
   return (
     <div className="row mb-4">
       {STATUS_FLOW.map((status) => {
@@ -273,27 +272,19 @@ function KanbanBoard({ issues, onUpdateStatus, canUpdateStatus }) {
                   <b className="small">{issue.title}</b>
                   <small className="text-muted">{issue.assetName}</small>
 
-                  {canUpdateStatus && getNextStatuses(issue.status).length > 0 && (
+                  {canUpdateStatus && (
                     <select
                       className="form-select form-select-sm mt-2"
-                      value=""
+                      value={issue.status}
+                      disabled={updatingIssueId === issue.id}
                       onChange={(e) => onUpdateStatus(issue.id, e.target.value)}
                     >
-                      <option value="" disabled>
-                        Set status...
-                      </option>
-                      {getNextStatuses(issue.status).map((status) => (
+                      {STATUS_FLOW.map((status) => (
                         <option key={status} value={status}>
                           {statusLabel(status)}
                         </option>
                       ))}
                     </select>
-                  )}
-                  {issue.status === "resolved" && (
-                    <span className="badge bg-success mt-1">Resolved</span>
-                  )}
-                  {issue.status === "closed" && (
-                    <span className="badge bg-secondary mt-1">Closed</span>
                   )}
                 </div>
               ))}
