@@ -42,3 +42,8 @@ class AuthService:
             }, 200
             
         return {"error": "Invalid credentials"}, 401
+    
+    @staticmethod
+    def get_all_employees():
+        users = User.query.filter_by(role="employee").all()
+        return [user.to_dict() for user in users]

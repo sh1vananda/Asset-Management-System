@@ -31,3 +31,9 @@ def get_me():
     if not user:
         return jsonify({"error": "User not found"}), 404
     return jsonify(user.to_dict()), 200
+
+@auth_bp.route('/employees', methods=['GET'])
+@jwt_required()
+def get_employees():
+    employees = AuthService.get_all_employees()
+    return jsonify(employees), 200
