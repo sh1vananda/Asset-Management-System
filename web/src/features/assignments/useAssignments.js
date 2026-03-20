@@ -7,7 +7,9 @@ import { extractApiErrorMessage } from "../../core/errors";
 export const useAssignments = () => {
   const { user } = useApp();
   const [assignments, setAssignments] = useState([]);
+  const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [employeesLoading, setEmployeesLoading] = useState(false);
   const [error, setError] = useState("");
 
   const fetchAssignments = useCallback(async (targetUserId) => {
@@ -38,17 +40,52 @@ export const useAssignments = () => {
     }
   }, []);
 
+  const fetchEmployees = useCallback(async () => {
+    setEmployeesLoading(true);
+
+    try {
+      let rows = [];
+
+      try {
+        const res = await api.get("/employees");
+        rows = Array.isArray(res.data) ? res.data : [];
+      } catch {
+        const res = await api.get("/auth/employees");
+        rows = Array.isArray(res.data) ? res.data : [];
+      }
+
+      const employeeRows = rows
+        .filter((row) => normalizeRole(row?.role) === ROLES.EMPLOYEE)
+        .map((row) => ({
+          id: Number(row.id),
+          username: row.username || `Employee ${row.id}`,
+          email: row.email || "",
+        }))
+        .filter((row) => Number.isFinite(row.id) && row.id > 0)
+        .sort((a, b) => a.id - b.id);
+
+      setEmployees(employeeRows);
+    } catch (err) {
+      console.error("Employees fetch error:", err.response?.data || err.message);
+      setEmployees([]);
+    } finally {
+      setEmployeesLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (!user?.id) return;
     const role = normalizeRole(user?.role);
     const isAdminOrIT = role === ROLES.ADMIN || role === ROLES.IT_MANAGER;
-    // Employees auto-load their own assignments
-    // Admins will manually select a user via the input field
+
     if (!isAdminOrIT) {
       console.log(`Fetching assignments for employee ${user.id}`);
       fetchAssignments(user.id);
+      return;
     }
-  }, [fetchAssignments, user?.id, user?.role]);
+
+    fetchEmployees();
+  }, [fetchAssignments, fetchEmployees, user?.id, user?.role]);
 
   const assignAsset = async (data) => {
     try {
@@ -146,12 +183,15 @@ export const useAssignments = () => {
 
   return {
     assignments,
+    employees,
     assignAsset,
     returnAsset,
     fetchAssignments,
+    fetchEmployees,
     findActiveAssignmentByAsset,
     scanActiveAssignmentsForAssets,
     loading,
+    employeesLoading,
     error,
   };
 };

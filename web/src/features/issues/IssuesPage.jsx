@@ -35,6 +35,14 @@ export default function IssuesPage() {
       issues.map((issue) => {
         const asset = assets.find((a) => a.id === issue.asset_id);
         const status = normalizeStatus(issue.status);
+        const isResolvedOrClosed = status === "resolved" || status === "closed";
+
+        // Turnaround is strictly computed as resolved_time - created_time.
+        const createdAt = parseIssueDate(issue.created_at || issue.createdAt);
+        const resolvedAt = parseIssueDate(issue.resolved_at || issue.resolvedAt || issue.closed_at || issue.closedAt);
+        const effectiveResolvedAt = isResolvedOrClosed ? resolvedAt : null;
+        const turnaroundMs = getTimeDiffMs(createdAt, effectiveResolvedAt);
+        const turnaroundLabel = formatTurnaround(turnaroundMs, isResolvedOrClosed);
 
         return {
           ...issue,
@@ -42,6 +50,8 @@ export default function IssuesPage() {
           assetCategory: asset?.category || "",
           title: issue.title || issue.description,
           status,
+          turnaroundMs,
+          turnaroundLabel,
         };
       }),
     [issues, assets]
@@ -151,6 +161,11 @@ export default function IssuesPage() {
       ),
     },
     {
+      key: "turnaroundMs",
+      header: "Turnaround",
+      render: (_, issue) => issue.turnaroundLabel,
+    },
+    {
       key: "actions",
       header: "Actions",
       render: (_, issue) => {
@@ -254,6 +269,39 @@ function statusLabel(status) {
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
+function parseIssueDate(value) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed;
+}
+
+function getTimeDiffMs(startValue, endValue) {
+  const start = startValue instanceof Date ? startValue : parseIssueDate(startValue);
+  const end = endValue instanceof Date ? endValue : parseIssueDate(endValue);
+
+  if (!start || !end) return null;
+
+  const diffMs = end.getTime() - start.getTime();
+  if (diffMs < 0) return null;
+
+  return diffMs;
+}
+
+function formatTurnaround(turnaroundMs, isResolvedOrClosed) {
+  if (!isResolvedOrClosed || turnaroundMs == null) {
+    return "Pending";
+  }
+
+  const oneDayMs = 24 * 60 * 60 * 1000;
+  if (turnaroundMs < oneDayMs) {
+    return "24 hrs";
+  }
+
+  const days = Math.max(1, Math.ceil(turnaroundMs / oneDayMs));
+  return `${days} day${days === 1 ? "" : "s"}`;
+}
+
 function KanbanBoard({ issues, onUpdateStatus, canUpdateStatus, updatingIssueId }) {
   return (
     <div className="row mb-4">
@@ -271,6 +319,9 @@ function KanbanBoard({ issues, onUpdateStatus, canUpdateStatus, updatingIssueId 
                 <div key={issue.id} className="card p-2 mb-2 border">
                   <b className="small">{issue.title}</b>
                   <small className="text-muted">{issue.assetName}</small>
+                  <small className="text-muted d-block">
+                    Turnaround: {issue.turnaroundLabel}
+                  </small>
 
                   {canUpdateStatus && (
                     <select

@@ -65,12 +65,14 @@ export default function AssignmentsPage() {
   const { user } = useApp();
   const {
     assignments = [],
+    employees = [],
     assignAsset,
     returnAsset,
     findActiveAssignmentByAsset,
     scanActiveAssignmentsForAssets,
     error,
     loading,
+    employeesLoading,
   } = useAssignments();
   const { assets = [], loading: assetsLoading } = useAssets();
   const { issues = [] } = useIssues();
@@ -187,6 +189,27 @@ export default function AssignmentsPage() {
     return { ...activeAssignmentMap };
   }, [activeAssignmentMap]);
 
+  const totalAssetsCount = assets.length;
+
+  const usedAssetsCount = useMemo(() => {
+    const usedFromAssignments = new Set(
+      Object.keys(allAssignedAssetMap)
+        .map((id) => Number(id))
+        .filter(Boolean)
+    );
+
+    assets.forEach((asset) => {
+      const normalizedStatus = String(asset.status || "").toLowerCase().trim();
+      if (normalizedStatus === "assigned") {
+        usedFromAssignments.add(Number(asset.id));
+      }
+    });
+
+    return usedFromAssignments.size;
+  }, [allAssignedAssetMap, assets]);
+
+  const availableAssetsCount = Math.max(totalAssetsCount - usedAssetsCount, 0);
+
   const assignableAssets = useMemo(
     () =>
       assets.filter((asset) => {
@@ -233,8 +256,10 @@ export default function AssignmentsPage() {
       nextErrors.assetId = "Only available assets without active issues can be assigned.";
     }
 
-    if (!assigneeId || Number.isNaN(Number(assigneeId)) || Number(assigneeId) <= 0) {
-      nextErrors.assigneeId = "Enter a valid user ID.";
+    if (!assigneeId) {
+      nextErrors.assigneeId = "Please select an employee.";
+    } else if (!employees.some((employee) => Number(employee.id) === Number(assigneeId))) {
+      nextErrors.assigneeId = "Please select a valid employee from the list.";
     }
 
     setFieldErrors(nextErrors);
@@ -372,7 +397,7 @@ export default function AssignmentsPage() {
     setMessage("✓ Assignment history row deleted.");
   };
 
-  if (loading || assetsLoading) {
+  if (loading || assetsLoading || (isAdminOrIT && employeesLoading)) {
     return <Loader text="Loading assignments..." />;
   }
 
@@ -435,6 +460,24 @@ export default function AssignmentsPage() {
           <div className="card p-3 mb-3">
             <h6 className="mb-3">Assign Asset</h6>
 
+            <div className="row g-2 mb-3">
+              <div className="col-md-4">
+                <div className="alert alert-secondary py-2 mb-0">
+                  <strong>Total Assets:</strong> {totalAssetsCount}
+                </div>
+              </div>
+              <div className="col-md-4">
+                <div className="alert alert-warning py-2 mb-0">
+                  <strong>Used Assets:</strong> {usedAssetsCount}
+                </div>
+              </div>
+              <div className="col-md-4">
+                <div className="alert alert-success py-2 mb-0">
+                  <strong>Available Assets:</strong> {availableAssetsCount}
+                </div>
+              </div>
+            </div>
+
             <form className="row g-3" onSubmit={handleAssign}>
               <div className="col-md-5">
                 <label className="form-label">Asset</label>
@@ -475,23 +518,32 @@ export default function AssignmentsPage() {
               </div>
 
               <div className="col-md-4">
-                <label className="form-label">Assign To User ID</label>
-                <input
-                  type="number"
-                  min="1"
-                  className={`form-control ${fieldErrors.assigneeId ? "is-invalid" : ""}`}
-                  placeholder="e.g. 7"
+                <label className="form-label">Assign To Employee</label>
+                <select
+                  className={`form-select ${fieldErrors.assigneeId ? "is-invalid" : ""}`}
                   value={assigneeId}
                   onChange={(e) => {
                     setAssigneeId(e.target.value);
                     setFieldErrors((prev) => ({ ...prev, assigneeId: "" }));
                   }}
-                />
+                >
+                  <option value="">Select employee ID</option>
+                  {employees.map((employee) => (
+                    <option key={employee.id} value={employee.id}>
+                      #{employee.id} - {employee.username}
+                    </option>
+                  ))}
+                </select>
                 {fieldErrors.assigneeId && <div className="invalid-feedback d-block">{fieldErrors.assigneeId}</div>}
+                {employees.length === 0 && (
+                  <div className="form-text text-muted">
+                    No employees found to assign assets.
+                  </div>
+                )}
               </div>
 
               <div className="col-md-3 d-flex align-items-end">
-                <button type="submit" className="btn btn-primary w-100">
+                <button type="submit" className="btn btn-primary w-100" disabled={employees.length === 0}>
                   Assign Asset
                 </button>
               </div>

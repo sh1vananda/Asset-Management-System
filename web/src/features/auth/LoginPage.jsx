@@ -9,7 +9,7 @@ export default function LoginPage() {
   const { login, logout } = useAuth();
   const { user } = useApp();
 
-  const [username, setUsername] = useState(""); // ✅ FIXED
+  const [username, setUsername] = useState(""); // FIXED
   const [password, setPassword] = useState("");
   const [role, setRole] = useState(ROLES.EMPLOYEE);
   const [error, setError] = useState("");
